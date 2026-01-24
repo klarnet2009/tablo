@@ -8,7 +8,8 @@ DB_PATH="/app/data/tablo.db"
 if [ ! -f "$DB_PATH" ]; then
     echo "Database not found. Initializing..."
     
-    # Push schema
+    # Set DATABASE_URL for Prisma
+    export DATABASE_URL="file:${DB_PATH}"
     npx prisma db push
     
     # Seed data
