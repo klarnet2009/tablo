@@ -48,6 +48,7 @@ export default function QueuePage() {
     const queryClient = useQueryClient();
     const [selectedVisit, setSelectedVisit] = useState<TruckVisit | null>(null);
     const [showDockModal, setShowDockModal] = useState(false);
+    const [reassignMode, setReassignMode] = useState(false);
 
     const { data: visits = [], isLoading } = useQuery<TruckVisit[]>({
         queryKey: ['visits', 'active'],
@@ -99,8 +100,40 @@ export default function QueuePage() {
 
     const handleAssignDock = (dockId: string) => {
         if (selectedVisit) {
-            statusMutation.mutate({ id: selectedVisit.id, status: 'CALLED', dockId });
+            if (reassignMode) {
+                reassignMutation.mutate({ id: selectedVisit.id, dockId });
+            } else {
+                statusMutation.mutate({ id: selectedVisit.id, status: 'CALLED', dockId });
+            }
         }
+    };
+
+    const reassignMutation = useMutation({
+        mutationFn: async ({ id, dockId }: { id: string; dockId: string }) => {
+            const res = await fetch(`/api/visits/${id}/dock`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dockId }),
+            });
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || 'Failed to reassign dock');
+            }
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['visits'] });
+            queryClient.invalidateQueries({ queryKey: ['docks'] });
+            setShowDockModal(false);
+            setSelectedVisit(null);
+            setReassignMode(false);
+        },
+    });
+
+    const handleReassignDock = (visit: TruckVisit) => {
+        setSelectedVisit(visit);
+        setReassignMode(true);
+        setShowDockModal(true);
     };
 
     // Group by status
@@ -132,8 +165,19 @@ export default function QueuePage() {
                         Type: <span className="text-slate-300">{visit.loadType}</span>
                     </div>
                     {visit.assignedDock && (
-                        <div className="text-slate-400">
-                            Dock: <span className="text-blue-400 font-medium">{visit.assignedDock.name}</span>
+                        <div className="text-slate-400 flex items-center gap-1">
+                            Dock:
+                            {['CALLED', 'DOCKED'].includes(visit.status) && ['DISPATCHER', 'SUPERVISOR', 'ADMIN'].includes(userRole) ? (
+                                <button
+                                    onClick={() => handleReassignDock(visit)}
+                                    className="text-blue-400 font-medium hover:text-blue-300 hover:underline flex items-center gap-1"
+                                >
+                                    {visit.assignedDock.name}
+                                    <span className="text-xs">✎</span>
+                                </button>
+                            ) : (
+                                <span className="text-blue-400 font-medium">{visit.assignedDock.name}</span>
+                            )}
                         </div>
                     )}
                     {visit.driverName && (
@@ -269,7 +313,7 @@ export default function QueuePage() {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 w-full max-w-md">
                         <h3 className="text-lg font-semibold text-white mb-4">
-                            Assign Dock for {selectedVisit.truckPlate}
+                            {reassignMode ? 'Change Dock' : 'Assign Dock'} for {selectedVisit.truckPlate}
                         </h3>
 
                         {availableDocks.length === 0 ? (
@@ -280,7 +324,7 @@ export default function QueuePage() {
                                     <button
                                         key={dock.id}
                                         onClick={() => handleAssignDock(dock.id)}
-                                        disabled={statusMutation.isPending}
+                                        disabled={statusMutation.isPending || reassignMutation.isPending}
                                         className="p-4 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 hover:border-blue-500 transition text-left disabled:opacity-50"
                                     >
                                         <div className="font-bold text-white">{dock.name}</div>
@@ -292,7 +336,7 @@ export default function QueuePage() {
 
                         <div className="flex justify-end">
                             <button
-                                onClick={() => { setShowDockModal(false); setSelectedVisit(null); }}
+                                onClick={() => { setShowDockModal(false); setSelectedVisit(null); setReassignMode(false); }}
                                 className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
                             >
                                 Cancel
