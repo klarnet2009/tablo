@@ -32,8 +32,8 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y openssl wget sqlite3 && rm -rf /var/lib/apt/lists/*
 
-# Update npm to latest
-RUN npm install -g npm@latest
+# Update npm to latest and install prisma globally
+RUN npm install -g npm@latest prisma
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
