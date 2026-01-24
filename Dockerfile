@@ -30,7 +30,7 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y openssl wget && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y openssl wget sqlite3 && rm -rf /var/lib/apt/lists/*
 
 # Update npm to latest
 RUN npm install -g npm@latest
