@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  role         String   @default("SECURITY")
+  isActive     Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  createdVisits TruckVisit[]
+  auditLogs     AuditLog[]
+}
+
+model Dock {
+  id         String @id @default(uuid())
+  name       String @unique
+  dockNumber Int    @unique
+  
+  dockType       String  @default("BOTH")
+  hasReeferPower Boolean @default(false)
+  hazmatOk       Boolean @default(false)
+  maxLength      Float?
+  dockHeight     Float?
+  
+  status String @default("AVAILABLE")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  visits TruckVisit[]
+}
+
+model TruckVisit {
+  id           String @id @default(uuid())
+  truckPlate   String
+  trailerPlate String?
+  carrier      String?
+  driverName   String?
+  driverPhone  String?
+  loadType     String @default("INBOUND")
+  orderRef     String?
+  priority     String @default("NORMAL")
+  status       String @default("NEW")
+  
+  assignedDock   Dock?   @relation(fields: [assignedDockId], references: [id])
+  assignedDockId String?
+  
+  createdAt  DateTime  @default(now())
+  arrivedAt  DateTime?
+  calledAt   DateTime?
+  dockedAt   DateTime?
+  startedAt  DateTime?
+  finishedAt DateTime?
+  leftAt     DateTime?
+  
+  notes         String?
+  flags         String?
+  queuePosition Int?
+  
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
+  auditLogs   AuditLog[]
+  
+  @@index([status])
+  @@index([truckPlate])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String @id @default(uuid())
+  action     String
+  entityType String
+  entityId   String
+  
+  beforeState String?
+  afterState  String?
+  metadata    String?
+  
+  createdAt DateTime @default(now())
+  
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String
+  visit   TruckVisit? @relation(fields: [visitId], references: [id])
+  visitId String?
+  
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

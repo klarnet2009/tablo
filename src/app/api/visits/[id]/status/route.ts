@@ -1,0 +1,176 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import prisma from '@/lib/prisma';
+import { createAuditLog, AuditActions } from '@/lib/audit';
+import {
+    isValidTransition,
+    canUserTransition,
+    getTimestampField,
+    VisitStatus,
+    UserRole
+} from '@/lib/status-machine';
+import { z } from 'zod';
+
+const statusChangeSchema = z.object({
+    status: z.enum([
+        'NEW', 'ARRIVED', 'WAITING', 'CALLED', 'DOCKED',
+        'IN_SERVICE', 'DONE', 'LEFT', 'CANCELLED', 'NO_SHOW', 'HOLD'
+    ]),
+    dockId: z.string().optional(),
+    notes: z.string().optional(),
+});
+
+export const dynamic = 'force-dynamic';
+
+export async function PATCH(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    try {
+        const body = await request.json();
+        const { status: newStatus, dockId, notes } = statusChangeSchema.parse(body);
+
+        // Get current visit
+        const visit = await prisma.truckVisit.findUnique({
+            where: { id },
+            include: { assignedDock: true },
+        });
+
+        if (!visit) {
+            return NextResponse.json({ error: 'Visit not found' }, { status: 404 });
+        }
+
+        const currentStatus = visit.status as VisitStatus;
+        const userRole = session.user.role as UserRole;
+
+        // Validate transition
+        if (!isValidTransition(currentStatus, newStatus)) {
+            return NextResponse.json(
+                { error: `Invalid transition from ${currentStatus} to ${newStatus}` },
+                { status: 400 }
+            );
+        }
+
+        if (!canUserTransition(currentStatus, newStatus, userRole)) {
+            return NextResponse.json(
+                { error: 'You do not have permission for this transition' },
+                { status: 403 }
+            );
+        }
+
+        // Handle dock assignment for CALLED status
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updateData: any = {
+            status: newStatus,
+        };
+
+        // Set timestamp field if applicable
+        const timestampField = getTimestampField(newStatus);
+        if (timestampField) {
+            updateData[timestampField] = new Date();
+        }
+
+        // Handle notes
+        if (notes) {
+            updateData.notes = notes;
+        }
+
+        // Handle dock assignment
+        if (newStatus === 'CALLED') {
+            if (!dockId && !visit.assignedDockId) {
+                return NextResponse.json(
+                    { error: 'Dock must be assigned before calling truck' },
+                    { status: 400 }
+                );
+            }
+
+            if (dockId) {
+                // Check if dock is available
+                const dock = await prisma.dock.findUnique({ where: { id: dockId } });
+                if (!dock) {
+                    return NextResponse.json({ error: 'Dock not found' }, { status: 404 });
+                }
+                if (dock.status === 'BUSY') {
+                    // Check if it's busy with another visit
+                    const busyVisit = await prisma.truckVisit.findFirst({
+                        where: {
+                            assignedDockId: dockId,
+                            status: { in: ['CALLED', 'DOCKED', 'IN_SERVICE'] },
+                            id: { not: id },
+                        },
+                    });
+                    if (busyVisit) {
+                        return NextResponse.json(
+                            { error: 'Dock is already assigned to another active visit' },
+                            { status: 400 }
+                        );
+                    }
+                }
+                if (dock.status === 'CLOSED' || dock.status === 'MAINTENANCE') {
+                    return NextResponse.json(
+                        { error: `Dock is ${dock.status.toLowerCase()}` },
+                        { status: 400 }
+                    );
+                }
+
+                updateData.assignedDockId = dockId;
+
+                // Update dock status to busy
+                await prisma.dock.update({
+                    where: { id: dockId },
+                    data: { status: 'BUSY' },
+                });
+            }
+
+            // Remove from queue
+            updateData.queuePosition = null;
+        }
+
+        // Free dock when done or cancelled
+        if (['DONE', 'LEFT', 'CANCELLED', 'NO_SHOW'].includes(newStatus) && visit.assignedDockId) {
+            await prisma.dock.update({
+                where: { id: visit.assignedDockId },
+                data: { status: 'AVAILABLE' },
+            });
+
+            if (newStatus !== 'DONE') {
+                updateData.assignedDockId = null;
+            }
+        }
+
+        // Update visit
+        const updatedVisit = await prisma.truckVisit.update({
+            where: { id },
+            data: updateData,
+            include: { assignedDock: true },
+        });
+
+        // Create audit log
+        await createAuditLog({
+            action: AuditActions.STATUS_CHANGE,
+            entityType: 'TruckVisit',
+            entityId: id,
+            userId: session.user.id,
+            visitId: id,
+            beforeState: { status: currentStatus },
+            afterState: { status: newStatus },
+            metadata: { dockId, notes },
+        });
+
+        return NextResponse.json(updatedVisit);
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: (error as any).errors }, { status: 400 });
+        }
+        console.error('Error updating visit status:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+}

@@ -1,0 +1,140 @@
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { Truck, ArrowRight } from 'lucide-react';
+
+interface TruckVisit {
+    id: string;
+    truckPlate: string;
+    status: string;
+    queuePosition?: number;
+    assignedDock?: { name: string; dockNumber: number };
+}
+
+export default function DisplayPage() {
+    const [currentTime, setCurrentTime] = useState<string>('');
+
+    useEffect(() => {
+        // Update clock every second
+        const timer = setInterval(() => {
+            const now = new Date();
+            setCurrentTime(now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const { data: visits = [] } = useQuery<TruckVisit[]>({
+        queryKey: ['visits', 'display'],
+        queryFn: async () => {
+            // Fetch active visits (CALLED, DOCKED) + waiting
+            const res = await fetch('/api/visits?active=true');
+            const data = await res.json();
+            return data;
+        },
+        refetchInterval: 5000, // Fast refresh for display
+    });
+
+    // Filter for display:
+    // 1. CALLED/DOCKED (Active dock assignments) - Top priority
+    // 2. WAITING (Next in queue)
+    const activeVisits = visits.filter(v => ['CALLED', 'DOCKED'].includes(v.status));
+    const waitingVisits = visits
+        .filter(v => v.status === 'WAITING')
+        .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+
+    // Pagination for small screen if too many items
+    const [page, setPage] = useState(0);
+    const itemsPerPage = 3; // Fits vertically on 224px height
+
+    useEffect(() => {
+        const totalItems = activeVisits.length + waitingVisits.length;
+        if (totalItems > itemsPerPage) {
+            const timer = setInterval(() => {
+                setPage(p => {
+                    const maxPage = Math.ceil(totalItems / itemsPerPage) - 1;
+                    return p >= maxPage ? 0 : p + 1;
+                });
+            }, 10000); // Change page every 10s
+            return () => clearInterval(timer);
+        }
+    }, [activeVisits.length, waitingVisits.length]);
+
+    // Combine lists for display
+    const displayList = [...activeVisits, ...waitingVisits].slice(page * itemsPerPage, (page + 1) * itemsPerPage);
+
+    return (
+        <div className="w-[576px] h-[224px] bg-black text-white overflow-hidden p-2 flex flex-col relative">
+            {/* Header Bar */}
+            <div className="flex items-center justify-between border-b-2 border-slate-700 pb-1 mb-1">
+                <div className="flex items-center gap-2">
+                    <div className="bg-blue-600 px-2 py-0.5 rounded text-lg font-bold">TABLO</div>
+                    <div className="text-sm text-slate-400 uppercase tracking-wider">Queue Status</div>
+                </div>
+                <div className="text-xl font-mono font-bold text-yellow-500">{currentTime}</div>
+            </div>
+
+            {/* Main Content Table - Optimized for readability from distance */}
+            <div className="flex-1 flex flex-col gap-1">
+                {/* Table Header */}
+                <div className="grid grid-cols-6 gap-2 text-xs text-slate-500 font-bold uppercase px-2">
+                    <div className="col-span-1">Pos</div>
+                    <div className="col-span-2">Plate Number</div>
+                    <div className="col-span-3 text-right">Dock / Status</div>
+                </div>
+
+                {/* Rows */}
+                {displayList.map((visit, idx) => {
+                    const isCalled = ['CALLED', 'DOCKED'].includes(visit.status);
+                    const globalIdx = (page * itemsPerPage) + idx + 1;
+
+                    return (
+                        <div
+                            key={visit.id}
+                            className={`grid grid-cols-6 gap-2 items-center px-2 py-1 rounded ${isCalled
+                                ? 'bg-green-900/40 border-l-4 border-green-500 animate-pulse-slow'
+                                : 'bg-slate-900 border-l-4 border-slate-700'
+                                }`}
+                        >
+                            <div className="col-span-1 font-mono text-xl text-slate-400">
+                                #{isCalled ? '' : visit.queuePosition || globalIdx}
+                            </div>
+                            <div className={`col-span-2 font-mono text-2xl font-bold tracking-wider ${isCalled ? 'text-green-400' : 'text-white'
+                                }`}>
+                                {visit.truckPlate}
+                            </div>
+                            <div className="col-span-3 text-right flex items-center justify-end gap-2">
+                                {isCalled && visit.assignedDock ? (
+                                    <>
+                                        <span className="text-xs text-green-300 uppercase">PROCEED TO</span>
+                                        <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded">
+                                            {visit.assignedDock.name.replace('Dock ', 'D-')}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <span className="text-slate-400 font-medium">WAITING</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {displayList.length === 0 && (
+                    <div className="flex-1 flex items-center justify-center text-slate-500 text-lg">
+                        NO TRUCKS IN QUEUE
+                    </div>
+                )}
+            </div>
+
+            {/* Footer / Paginator dots */}
+            <div className="absolute bottom-1 right-2 flex gap-1">
+                {Array.from({ length: Math.ceil((activeVisits.length + waitingVisits.length) / itemsPerPage) }).map((_, i) => (
+                    <div
+                        key={i}
+                        className={`w-1.5 h-1.5 rounded-full ${i === page ? 'bg-blue-500' : 'bg-slate-700'}`}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
