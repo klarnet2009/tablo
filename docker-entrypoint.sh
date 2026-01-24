@@ -4,15 +4,18 @@ set -e
 # Database file path
 DB_PATH="/app/data/tablo.db"
 
+# Always create/update .env with DATABASE_URL for Prisma
+echo "DATABASE_URL=file:${DB_PATH}" > /app/.env
+
 # Check if database needs initialization
 if [ ! -f "$DB_PATH" ]; then
     echo "Database not found. Initializing..."
     
-    # Push schema with explicit URL
-    npx prisma db push --url "file:${DB_PATH}"
+    # Push schema
+    npx prisma db push
     
-    # Seed data with explicit URL
-    npx prisma db execute --url "file:${DB_PATH}" --file /app/prisma/seed.sql
+    # Seed data
+    npx prisma db execute --file /app/prisma/seed.sql
     
     echo "Database initialized successfully."
 else
