@@ -12,7 +12,9 @@ import {
     X,
     CheckCircle,
     Truck,
-    Clock
+    Clock,
+    RotateCcw,
+    LogOut
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -151,13 +153,13 @@ export default function QueuePage() {
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-700">
                         {availableTransitions.map(status => {
                             const actionConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-                                CALLED: { label: 'Call', icon: <Play className="w-3 h-3" />, color: 'bg-green-500 hover:bg-green-600' },
-                                DOCKED: { label: 'Docked', icon: <Truck className="w-3 h-3" />, color: 'bg-blue-500 hover:bg-blue-600' },
-                                IN_SERVICE: { label: 'Start', icon: <Play className="w-3 h-3" />, color: 'bg-indigo-500 hover:bg-indigo-600' },
-                                DONE: { label: 'Done', icon: <CheckCircle className="w-3 h-3" />, color: 'bg-green-500 hover:bg-green-600' },
-                                LEFT: { label: 'Left', icon: <CheckCircle className="w-3 h-3" />, color: 'bg-gray-500 hover:bg-gray-600' },
-                                HOLD: { label: 'Hold', icon: <Pause className="w-3 h-3" />, color: 'bg-amber-500 hover:bg-amber-600' },
-                                WAITING: { label: 'Resume', icon: <Play className="w-3 h-3" />, color: 'bg-green-500 hover:bg-green-600' },
+                                CALLED: { label: 'Call to Dock', icon: <Play className="w-3 h-3" />, color: 'bg-green-500 hover:bg-green-600' },
+                                DOCKED: { label: 'Confirm Arrival', icon: <Truck className="w-3 h-3" />, color: 'bg-blue-500 hover:bg-blue-600' },
+                                IN_SERVICE: { label: 'Start Loading', icon: <Play className="w-3 h-3" />, color: 'bg-indigo-500 hover:bg-indigo-600' },
+                                DONE: { label: 'Complete', icon: <CheckCircle className="w-3 h-3" />, color: 'bg-green-500 hover:bg-green-600' },
+                                LEFT: { label: 'Departed', icon: <LogOut className="w-3 h-3" />, color: 'bg-gray-500 hover:bg-gray-600' },
+                                HOLD: { label: 'Put on Hold', icon: <Pause className="w-3 h-3" />, color: 'bg-amber-500 hover:bg-amber-600' },
+                                WAITING: { label: 'Back to Queue', icon: <RotateCcw className="w-3 h-3" />, color: 'bg-slate-500 hover:bg-slate-600' },
                                 CANCELLED: { label: 'Cancel', icon: <X className="w-3 h-3" />, color: 'bg-red-500 hover:bg-red-600' },
                                 NO_SHOW: { label: 'No Show', icon: <X className="w-3 h-3" />, color: 'bg-red-500 hover:bg-red-600' },
                             };
