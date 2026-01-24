@@ -152,6 +152,11 @@ export default function QueuePage() {
                 {availableTransitions.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-700">
                         {availableTransitions.map(status => {
+                            // Context-dependent label for WAITING transition
+                            const waitingLabel = visit.status === 'ARRIVED' ? 'Add to Queue' : 'Back to Queue';
+                            const waitingIcon = visit.status === 'ARRIVED' ? <Play className="w-3 h-3" /> : <RotateCcw className="w-3 h-3" />;
+                            const waitingColor = visit.status === 'ARRIVED' ? 'bg-green-500 hover:bg-green-600' : 'bg-slate-500 hover:bg-slate-600';
+
                             const actionConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
                                 CALLED: { label: 'Call to Dock', icon: <Play className="w-3 h-3" />, color: 'bg-green-500 hover:bg-green-600' },
                                 DOCKED: { label: 'Confirm Arrival', icon: <Truck className="w-3 h-3" />, color: 'bg-blue-500 hover:bg-blue-600' },
@@ -159,7 +164,7 @@ export default function QueuePage() {
                                 DONE: { label: 'Complete', icon: <CheckCircle className="w-3 h-3" />, color: 'bg-green-500 hover:bg-green-600' },
                                 LEFT: { label: 'Departed', icon: <LogOut className="w-3 h-3" />, color: 'bg-gray-500 hover:bg-gray-600' },
                                 HOLD: { label: 'Put on Hold', icon: <Pause className="w-3 h-3" />, color: 'bg-amber-500 hover:bg-amber-600' },
-                                WAITING: { label: 'Back to Queue', icon: <RotateCcw className="w-3 h-3" />, color: 'bg-slate-500 hover:bg-slate-600' },
+                                WAITING: { label: waitingLabel, icon: waitingIcon, color: waitingColor },
                                 CANCELLED: { label: 'Cancel', icon: <X className="w-3 h-3" />, color: 'bg-red-500 hover:bg-red-600' },
                                 NO_SHOW: { label: 'No Show', icon: <X className="w-3 h-3" />, color: 'bg-red-500 hover:bg-red-600' },
                             };
