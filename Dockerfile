@@ -57,8 +57,13 @@ COPY --from=builder /app/node_modules/@libsql ./node_modules/@libsql
 # Copy seed files for database initialization
 COPY --from=builder /app/prisma/seed.sql ./prisma/seed.sql
 
+# Copy and setup entrypoint script
+COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
 # Create data directory for SQLite
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
+RUN chown nextjs:nodejs ./docker-entrypoint.sh
 
 USER nextjs
 
@@ -67,4 +72,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Use entrypoint script for auto-initialization
+ENTRYPOINT ["./docker-entrypoint.sh"]
