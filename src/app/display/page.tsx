@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Truck, ArrowRight } from 'lucide-react';
+import { Thermometer } from 'lucide-react';
 
 interface TruckVisit {
     id: string;
@@ -12,8 +12,13 @@ interface TruckVisit {
     assignedDock?: { name: string; dockNumber: number };
 }
 
+interface WeatherData {
+    temp: number;
+}
+
 export default function DisplayPage() {
     const [currentTime, setCurrentTime] = useState<string>('');
+    const [weather, setWeather] = useState<WeatherData | null>(null);
 
     useEffect(() => {
         // Update clock every second
@@ -21,6 +26,26 @@ export default function DisplayPage() {
             const now = new Date();
             setCurrentTime(now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
         }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Fetch weather (Riga, Latvia as default - change coordinates as needed)
+    useEffect(() => {
+        const fetchWeather = async () => {
+            try {
+                // Using Open-Meteo free API (no API key needed)
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.9496&longitude=24.1052&current_weather=true');
+                const data = await res.json();
+                if (data.current_weather) {
+                    setWeather({ temp: Math.round(data.current_weather.temperature) });
+                }
+            } catch (e) {
+                console.error('Failed to fetch weather:', e);
+            }
+        };
+        fetchWeather();
+        // Refresh weather every 15 minutes
+        const timer = setInterval(fetchWeather, 15 * 60 * 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -68,10 +93,18 @@ export default function DisplayPage() {
             {/* Header Bar */}
             <div className="flex items-center justify-between border-b-2 border-slate-700 pb-1 mb-1">
                 <div className="flex items-center gap-2">
-                    <div className="bg-blue-600 px-2 py-0.5 rounded text-lg font-bold">TABLO</div>
+                    <div className="bg-blue-600 px-2 py-0.5 rounded text-lg font-bold">ITERUM</div>
                     <div className="text-sm text-slate-400 uppercase tracking-wider">Queue Status</div>
                 </div>
-                <div className="text-xl font-mono font-bold text-yellow-500">{currentTime}</div>
+                <div className="flex items-center gap-3">
+                    {weather && (
+                        <div className="flex items-center gap-1 text-sm text-cyan-400">
+                            <Thermometer className="w-4 h-4" />
+                            <span className="font-bold">{weather.temp}°C</span>
+                        </div>
+                    )}
+                    <div className="text-xl font-mono font-bold text-yellow-500">{currentTime}</div>
+                </div>
             </div>
 
             {/* Main Content Table - Optimized for readability from distance */}
@@ -108,7 +141,7 @@ export default function DisplayPage() {
                                     <>
                                         <span className="text-xs text-green-300 uppercase">PROCEED TO</span>
                                         <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded">
-                                            {visit.assignedDock.name.replace('Dock ', 'D-')}
+                                            {visit.assignedDock.dockNumber}
                                         </div>
                                     </>
                                 ) : (

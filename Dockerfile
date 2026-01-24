@@ -14,10 +14,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set build-time environment variables
-ENV DATABASE_URL="file:/app/data/tablo.db"
-ENV NEXTAUTH_SECRET="build-secret"
-ENV NEXTAUTH_URL="http://localhost:3000"
+# Create .env file for build (required for Prisma and NextAuth)
+RUN echo "DATABASE_URL=file:/app/data/tablo.db" > .env && \
+    echo "NEXTAUTH_SECRET=build-secret" >> .env && \
+    echo "NEXTAUTH_URL=http://localhost:3000" >> .env
 
 # Generate Prisma Client
 RUN npx prisma generate
