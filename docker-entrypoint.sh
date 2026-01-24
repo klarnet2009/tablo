@@ -4,7 +4,10 @@ set -e
 # Database file path
 DB_PATH="/app/data/tablo.db"
 
-# Always create/update .env with DATABASE_URL for Prisma
+# Set DATABASE_URL as environment variable (required for Prisma)
+export DATABASE_URL="file:${DB_PATH}"
+
+# Also write to .env for any other tools that need it
 echo "DATABASE_URL=file:${DB_PATH}" > /app/.env
 
 # Function to check if database has User table
@@ -34,5 +37,5 @@ else
     echo "Database already initialized. Skipping setup."
 fi
 
-# Start the application
+# Start the application with DATABASE_URL set
 exec node server.js
