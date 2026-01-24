@@ -54,11 +54,13 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma files
+# Copy Prisma files and CLI
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/@libsql ./node_modules/@libsql
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 # Copy seed files for database initialization
 COPY --from=builder /app/prisma/seed.sql ./prisma/seed.sql
@@ -77,6 +79,7 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV DATABASE_URL="file:/app/data/tablo.db"
 
 # Use entrypoint script for auto-initialization
 ENTRYPOINT ["./docker-entrypoint.sh"]
