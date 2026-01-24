@@ -40,6 +40,7 @@ interface Dock {
     id: string;
     name: string;
     dockNumber: number;
+    dockType: string;
     status: string;
 }
 
@@ -316,11 +317,31 @@ export default function QueuePage() {
                             {reassignMode ? 'Change Dock' : 'Assign Dock'} for {selectedVisit.truckPlate}
                         </h3>
 
-                        {availableDocks.length === 0 ? (
+                        {/* Scales option for INBOUND visits */}
+                        {selectedVisit.loadType === 'INBOUND' && !reassignMode && (() => {
+                            const scalesDock = docks.find(d => d.dockType === 'SCALES' && d.status === 'AVAILABLE');
+                            return scalesDock ? (
+                                <div className="mb-4">
+                                    <div className="text-xs text-slate-400 uppercase mb-2">Weighing</div>
+                                    <button
+                                        onClick={() => handleAssignDock(scalesDock.id)}
+                                        disabled={statusMutation.isPending || reassignMutation.isPending}
+                                        className="w-full p-4 bg-amber-900/50 border border-amber-600 rounded-lg hover:bg-amber-800/50 hover:border-amber-500 transition text-left disabled:opacity-50"
+                                    >
+                                        <div className="font-bold text-amber-400">⚖ Scales</div>
+                                        <div className="text-xs text-amber-300">Send to weighing station</div>
+                                    </button>
+                                </div>
+                            ) : null;
+                        })()}
+
+                        {/* Regular docks */}
+                        <div className="text-xs text-slate-400 uppercase mb-2">Docks</div>
+                        {availableDocks.filter(d => d.dockType !== 'SCALES').length === 0 ? (
                             <p className="text-slate-400 mb-4">No docks available</p>
                         ) : (
                             <div className="grid grid-cols-2 gap-3 mb-4">
-                                {availableDocks.map(dock => (
+                                {availableDocks.filter(d => d.dockType !== 'SCALES').map(dock => (
                                     <button
                                         key={dock.id}
                                         onClick={() => handleAssignDock(dock.id)}

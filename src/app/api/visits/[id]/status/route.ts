@@ -146,6 +146,15 @@ export async function PATCH(
             }
         }
 
+        // Free dock when returning to WAITING (e.g., from CALLED, DOCKED, or DONE after weighing)
+        if (newStatus === 'WAITING' && visit.assignedDockId) {
+            await prisma.dock.update({
+                where: { id: visit.assignedDockId },
+                data: { status: 'AVAILABLE' },
+            });
+            updateData.assignedDockId = null;
+        }
+
         // Update visit
         const updatedVisit = await prisma.truckVisit.update({
             where: { id },

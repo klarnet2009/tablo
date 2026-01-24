@@ -9,7 +9,7 @@ interface TruckVisit {
     truckPlate: string;
     status: string;
     queuePosition?: number;
-    assignedDock?: { name: string; dockNumber: number };
+    assignedDock?: { name: string; dockNumber: number; dockType: string };
 }
 
 interface WeatherData {
@@ -145,26 +145,53 @@ export default function DisplayPage() {
                             </div>
                             <div className="col-span-3 text-right flex items-center justify-end gap-2">
                                 {isLoading && visit.assignedDock ? (
-                                    <>
-                                        <span className="text-xs text-indigo-300 uppercase">LOADING</span>
-                                        <div className="bg-indigo-600 text-white font-bold px-3 py-0 text-xl rounded">
-                                            {visit.assignedDock.dockNumber}
-                                        </div>
-                                    </>
+                                    visit.assignedDock.dockType === 'SCALES' ? (
+                                        <>
+                                            <span className="text-xs text-amber-300 uppercase">WEIGHING</span>
+                                            <div className="bg-amber-600 text-white font-bold px-3 py-0 text-xl rounded">
+                                                ⚖
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-xs text-indigo-300 uppercase">LOADING</span>
+                                            <div className="bg-indigo-600 text-white font-bold px-3 py-0 text-xl rounded">
+                                                {visit.assignedDock.dockNumber}
+                                            </div>
+                                        </>
+                                    )
                                 ) : isDocked && visit.assignedDock ? (
-                                    <>
-                                        <span className="text-xs text-blue-300 uppercase">AT DOCK</span>
-                                        <div className="bg-blue-600 text-white font-bold px-3 py-0 text-xl rounded">
-                                            {visit.assignedDock.dockNumber}
-                                        </div>
-                                    </>
+                                    visit.assignedDock.dockType === 'SCALES' ? (
+                                        <>
+                                            <span className="text-xs text-amber-300 uppercase">AT SCALES</span>
+                                            <div className="bg-amber-600 text-white font-bold px-3 py-0 text-xl rounded">
+                                                ⚖
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-xs text-blue-300 uppercase">AT DOCK</span>
+                                            <div className="bg-blue-600 text-white font-bold px-3 py-0 text-xl rounded">
+                                                {visit.assignedDock.dockNumber}
+                                            </div>
+                                        </>
+                                    )
                                 ) : isCalled && visit.assignedDock ? (
-                                    <>
-                                        <span className="text-xs text-green-300 uppercase">PROCEED TO</span>
-                                        <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded">
-                                            {visit.assignedDock.dockNumber}
-                                        </div>
-                                    </>
+                                    visit.assignedDock.dockType === 'SCALES' ? (
+                                        <>
+                                            <span className="text-xs text-amber-300 uppercase">GO TO SCALES</span>
+                                            <div className="bg-amber-600 text-black font-bold px-3 py-0 text-xl rounded animate-pulse">
+                                                ⚖
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-xs text-green-300 uppercase">PROCEED TO</span>
+                                            <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded">
+                                                {visit.assignedDock.dockNumber}
+                                            </div>
+                                        </>
+                                    )
                                 ) : (
                                     <span className="text-slate-400 font-medium">WAITING</span>
                                 )}

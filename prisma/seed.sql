@@ -12,4 +12,6 @@ INSERT OR REPLACE INTO Dock (id, name, dockNumber, dockType, hasReeferPower, haz
 ('dock-003', 'Dock 3', 3, 'INBOUND', 0, 0, 'AVAILABLE', datetime('now'), datetime('now')),
 ('dock-004', 'Dock 4', 4, 'INBOUND', 0, 1, 'AVAILABLE', datetime('now'), datetime('now')),
 ('dock-005', 'Dock 5', 5, 'OUTBOUND', 1, 0, 'AVAILABLE', datetime('now'), datetime('now')),
-('dock-006', 'Dock 6', 6, 'OUTBOUND', 0, 0, 'AVAILABLE', datetime('now'), datetime('now'));
+('dock-006', 'Dock 6', 6, 'OUTBOUND', 0, 0, 'AVAILABLE', datetime('now'), datetime('now')),
+('scales-001', 'Scales', 99, 'SCALES', 0, 0, 'AVAILABLE', datetime('now'), datetime('now'));
+

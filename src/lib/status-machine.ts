@@ -25,7 +25,7 @@ const validTransitions: Record<VisitStatus, VisitStatus[]> = {
     CALLED: ['DOCKED', 'WAITING', 'NO_SHOW'],
     DOCKED: ['IN_SERVICE', 'WAITING'],
     IN_SERVICE: ['DONE'],
-    DONE: ['LEFT'],
+    DONE: ['LEFT', 'WAITING', 'CALLED'],
     LEFT: [],
     CANCELLED: [],
     NO_SHOW: [],
@@ -49,6 +49,8 @@ const transitionPermissions: Record<string, UserRole[]> = {
     'DOCKED->WAITING': ['DISPATCHER', 'SUPERVISOR', 'ADMIN'],
     'IN_SERVICE->DONE': ['SECURITY', 'DISPATCHER', 'SUPERVISOR', 'ADMIN'],
     'DONE->LEFT': ['SECURITY', 'DISPATCHER', 'SUPERVISOR', 'ADMIN'],
+    'DONE->WAITING': ['DISPATCHER', 'SUPERVISOR', 'ADMIN'],
+    'DONE->CALLED': ['DISPATCHER', 'SUPERVISOR', 'ADMIN'],
 };
 
 export function isValidTransition(from: VisitStatus, to: VisitStatus): boolean {
