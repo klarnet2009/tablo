@@ -9,7 +9,7 @@ if [ ! -f "$DB_PATH" ]; then
     echo "Database not found. Initializing..."
     
     # Push schema
-    npx prisma db push --skip-generate
+    npx prisma db push
     
     # Seed data
     npx prisma db execute --file /app/prisma/seed.sql
