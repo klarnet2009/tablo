@@ -4,7 +4,7 @@ services:
     container_name: tablo
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - DATABASE_URL=file:/app/data/tablo.db
       - NEXTAUTH_SECRET=your-secret-key-change-in-production
