@@ -32,6 +32,9 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y openssl wget && rm -rf /var/lib/apt/lists/*
 
+# Update npm to latest
+RUN npm install -g npm@latest
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
