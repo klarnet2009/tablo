@@ -118,26 +118,37 @@ export default function DisplayPage() {
 
                 {/* Rows */}
                 {displayList.map((visit, idx) => {
-                    const isCalled = ['CALLED', 'DOCKED'].includes(visit.status);
+                    const isCalled = visit.status === 'CALLED';
+                    const isDocked = visit.status === 'DOCKED';
+                    const isActive = isCalled || isDocked;
                     const globalIdx = (page * itemsPerPage) + idx + 1;
 
                     return (
                         <div
                             key={visit.id}
-                            className={`grid grid-cols-6 gap-2 items-center px-2 py-1 rounded ${isCalled
-                                ? 'bg-green-900/40 border-l-4 border-green-500 animate-pulse-slow'
+                            className={`grid grid-cols-6 gap-2 items-center px-2 py-1 rounded ${isActive
+                                ? isDocked
+                                    ? 'bg-blue-900/40 border-l-4 border-blue-500'
+                                    : 'bg-green-900/40 border-l-4 border-green-500 animate-pulse-slow'
                                 : 'bg-slate-900 border-l-4 border-slate-700'
                                 }`}
                         >
                             <div className="col-span-1 font-mono text-xl text-slate-400">
-                                #{isCalled ? '' : visit.queuePosition || globalIdx}
+                                #{isActive ? '' : visit.queuePosition || globalIdx}
                             </div>
-                            <div className={`col-span-2 font-mono text-2xl font-bold tracking-wider ${isCalled ? 'text-green-400' : 'text-white'
+                            <div className={`col-span-2 font-mono text-2xl font-bold tracking-wider ${isDocked ? 'text-blue-400' : isCalled ? 'text-green-400' : 'text-white'
                                 }`}>
                                 {visit.truckPlate}
                             </div>
                             <div className="col-span-3 text-right flex items-center justify-end gap-2">
-                                {isCalled && visit.assignedDock ? (
+                                {isDocked && visit.assignedDock ? (
+                                    <>
+                                        <span className="text-xs text-blue-300 uppercase">AT DOCK</span>
+                                        <div className="bg-blue-600 text-white font-bold px-3 py-0 text-xl rounded">
+                                            {visit.assignedDock.dockNumber}
+                                        </div>
+                                    </>
+                                ) : isCalled && visit.assignedDock ? (
                                     <>
                                         <span className="text-xs text-green-300 uppercase">PROCEED TO</span>
                                         <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded">
