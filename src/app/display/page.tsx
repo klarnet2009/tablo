@@ -2,7 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Thermometer } from 'lucide-react';
+import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
 
 interface TruckVisit {
     id: string;
@@ -17,6 +19,28 @@ interface WeatherData {
 }
 
 export default function DisplayPage() {
+    const searchParams = useSearchParams();
+    const langParam = searchParams.get('lang');
+
+    // Supported languages for rotation
+    const locales: Locale[] = ['en', 'pl'];
+    const [localeIndex, setLocaleIndex] = useState(0);
+
+    // Auto-rotate language every 10 seconds (like train stations)
+    // URL param ?lang=xx overrides and locks to specific language
+    useEffect(() => {
+        if (isValidLocale(langParam)) return; // Don't rotate if locked via URL
+
+        const timer = setInterval(() => {
+            setLocaleIndex(i => (i + 1) % locales.length);
+        }, 7000); // 7 seconds per language
+
+        return () => clearInterval(timer);
+    }, [langParam, locales.length]);
+
+    const locale: Locale = isValidLocale(langParam) ? langParam : locales[localeIndex];
+    const t = getTranslations(locale);
+
     const [currentTime, setCurrentTime] = useState<string>('');
     const [weather, setWeather] = useState<WeatherData | null>(null);
 
@@ -94,7 +118,7 @@ export default function DisplayPage() {
             <div className="flex items-center justify-between border-b-2 border-slate-700 pb-1 mb-1">
                 <div className="flex items-center gap-2">
                     <div className="bg-blue-600 px-2 py-0.5 rounded text-lg font-bold">ITERUM</div>
-                    <div className="text-sm text-slate-400 uppercase tracking-wider">Queue Status</div>
+                    <div className="text-sm text-slate-400 uppercase tracking-wider">{t.queueStatus}</div>
                 </div>
                 <div className="flex items-center gap-3">
                     {weather && (
@@ -111,9 +135,9 @@ export default function DisplayPage() {
             <div className="flex-1 flex flex-col gap-1">
                 {/* Table Header */}
                 <div className="grid grid-cols-6 gap-2 text-xs text-slate-500 font-bold uppercase px-2">
-                    <div className="col-span-1">Pos</div>
-                    <div className="col-span-2">Plate Number</div>
-                    <div className="col-span-3 text-right">Dock / Status</div>
+                    <div className="col-span-1">{t.pos}</div>
+                    <div className="col-span-2">{t.plateNumber}</div>
+                    <div className="col-span-3 text-right">{t.dockStatus}</div>
                 </div>
 
                 {/* Rows */}
@@ -147,14 +171,14 @@ export default function DisplayPage() {
                                 {isLoading && visit.assignedDock ? (
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
-                                            <span className="text-xs text-amber-300 uppercase">WEIGHING</span>
+                                            <span className="text-xs text-amber-300 uppercase">{t.weighing}</span>
                                             <div className="bg-amber-600 text-white font-bold px-3 py-0 text-xl rounded">
                                                 ⚖
                                             </div>
                                         </>
                                     ) : (
                                         <>
-                                            <span className="text-xs text-indigo-300 uppercase">LOADING</span>
+                                            <span className="text-xs text-indigo-300 uppercase">{t.loading}</span>
                                             <div className="bg-indigo-600 text-white font-bold px-3 py-0 text-xl rounded">
                                                 {visit.assignedDock.dockNumber}
                                             </div>
@@ -163,14 +187,14 @@ export default function DisplayPage() {
                                 ) : isDocked && visit.assignedDock ? (
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
-                                            <span className="text-xs text-amber-300 uppercase">AT SCALES</span>
+                                            <span className="text-xs text-amber-300 uppercase">{t.atScales}</span>
                                             <div className="bg-amber-600 text-white font-bold px-3 py-0 text-xl rounded">
                                                 ⚖
                                             </div>
                                         </>
                                     ) : (
                                         <>
-                                            <span className="text-xs text-blue-300 uppercase">AT DOCK</span>
+                                            <span className="text-xs text-blue-300 uppercase">{t.atDock}</span>
                                             <div className="bg-blue-600 text-white font-bold px-3 py-0 text-xl rounded">
                                                 {visit.assignedDock.dockNumber}
                                             </div>
@@ -179,21 +203,21 @@ export default function DisplayPage() {
                                 ) : isCalled && visit.assignedDock ? (
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
-                                            <span className="text-xs text-amber-300 uppercase">GO TO SCALES</span>
+                                            <span className="text-xs text-amber-300 uppercase">{t.goToScales}</span>
                                             <div className="bg-amber-600 text-black font-bold px-3 py-0 text-xl rounded animate-pulse">
                                                 ⚖
                                             </div>
                                         </>
                                     ) : (
                                         <>
-                                            <span className="text-xs text-green-300 uppercase">PROCEED TO</span>
+                                            <span className="text-xs text-green-300 uppercase">{t.proceedTo}</span>
                                             <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded">
                                                 {visit.assignedDock.dockNumber}
                                             </div>
                                         </>
                                     )
                                 ) : (
-                                    <span className="text-slate-400 font-medium">WAITING</span>
+                                    <span className="text-slate-400 font-medium">{t.waiting}</span>
                                 )}
                             </div>
                         </div>
@@ -202,7 +226,7 @@ export default function DisplayPage() {
 
                 {displayList.length === 0 && (
                     <div className="flex-1 flex items-center justify-center text-slate-500 text-lg">
-                        NO TRUCKS IN QUEUE
+                        {t.noTrucks}
                     </div>
                 )}
             </div>
