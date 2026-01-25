@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Thermometer } from 'lucide-react';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
@@ -18,7 +18,8 @@ interface WeatherData {
     temp: number;
 }
 
-export default function DisplayPage() {
+// Main display content component
+function DisplayContent() {
     const searchParams = useSearchParams();
     const langParam = searchParams.get('lang');
 
@@ -241,5 +242,18 @@ export default function DisplayPage() {
                 ))}
             </div>
         </div>
+    );
+}
+
+// Wrap in Suspense for Next.js 16 static generation compatibility
+export default function DisplayPage() {
+    return (
+        <Suspense fallback={
+            <div className="w-[576px] h-[224px] bg-black text-white flex items-center justify-center">
+                <div className="text-slate-400">Loading...</div>
+            </div>
+        }>
+            <DisplayContent />
+        </Suspense>
     );
 }
