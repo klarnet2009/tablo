@@ -246,8 +246,8 @@ function DisplayContent() {
                                 {isLoading && visit.assignedDock ? (
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
-                                            <span className="text-xs text-yellow-400 uppercase font-bold">{t.weighing}</span>
-                                            <div className="bg-yellow-400 text-black font-black px-3 py-0 text-xl rounded">
+                                            <span className="text-xs text-yellow-300 uppercase font-bold">{t.weighing}</span>
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-xl rounded border-2 border-yellow-100">
                                                 ⚖
                                             </div>
                                         </>
@@ -262,8 +262,8 @@ function DisplayContent() {
                                 ) : isDocked && visit.assignedDock ? (
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
-                                            <span className="text-xs text-yellow-400 uppercase font-bold">{t.atScales}</span>
-                                            <div className="bg-yellow-400 text-black font-black px-3 py-0 text-xl rounded">
+                                            <span className="text-xs text-yellow-300 uppercase font-bold">{t.atScales}</span>
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-xl rounded border-2 border-yellow-100">
                                                 ⚖
                                             </div>
                                         </>
@@ -278,8 +278,8 @@ function DisplayContent() {
                                 ) : isCalled && visit.assignedDock ? (
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
-                                            <span className="text-xs text-yellow-400 uppercase font-bold">{t.goToScales}</span>
-                                            <div className="bg-yellow-400 text-black font-black px-3 py-0 text-xl rounded animate-pulse">
+                                            <span className="text-xs text-yellow-300 uppercase font-bold">{t.goToScales}</span>
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-xl rounded border-2 border-yellow-100 animate-pulse">
                                                 ⚖
                                             </div>
                                         </>
