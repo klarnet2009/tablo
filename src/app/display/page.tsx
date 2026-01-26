@@ -278,14 +278,14 @@ function DisplayContent() {
                                 ) : isCalled && visit.assignedDock ? (
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
-                                            <span className="text-sm text-yellow-300 uppercase font-black">{t.goToScales}</span>
+                                            <span className="text-base text-yellow-300 uppercase font-black">{t.goToScales}</span>
                                             <div className="bg-yellow-300 text-black font-black px-3 py-1 rounded flex items-center justify-center animate-pulse">
                                                 <Scale className="w-6 h-6" />
                                             </div>
                                         </>
                                     ) : (
                                         <>
-                                            <span className="text-sm text-green-300 uppercase font-black">{t.proceedTo}</span>
+                                            <span className="text-base text-green-300 uppercase font-black">{t.proceedTo}</span>
                                             <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded">
                                                 {visit.assignedDock.dockNumber}
                                             </div>
