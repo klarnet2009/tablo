@@ -247,8 +247,8 @@ function DisplayContent() {
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
                                             <span className="text-xs text-yellow-300 uppercase font-bold">{t.weighing}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-xl rounded border-2 border-yellow-100">
-                                                ⚖
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-2xl rounded">
+                                                W
                                             </div>
                                         </>
                                     ) : (
@@ -263,8 +263,8 @@ function DisplayContent() {
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
                                             <span className="text-xs text-yellow-300 uppercase font-bold">{t.atScales}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-xl rounded border-2 border-yellow-100">
-                                                ⚖
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-2xl rounded">
+                                                W
                                             </div>
                                         </>
                                     ) : (
@@ -279,8 +279,8 @@ function DisplayContent() {
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
                                             <span className="text-xs text-yellow-300 uppercase font-bold">{t.goToScales}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-xl rounded border-2 border-yellow-100 animate-pulse">
-                                                ⚖
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-2xl rounded animate-pulse">
+                                                W
                                             </div>
                                         </>
                                     ) : (
