@@ -139,22 +139,27 @@ function DisplayContent() {
         <div className="w-[576px] h-[224px] bg-black text-white overflow-hidden p-2 flex flex-col relative">
             {/* Flash Notification Overlay */}
             {currentFlash && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-green-600">
-                    <div className="text-center">
-                        <div className="text-6xl font-mono font-black tracking-wider mb-2 text-white drop-shadow-lg animate-bounce">
-                            {currentFlash.truckPlate}
-                        </div>
-                        <div className="text-3xl font-bold text-green-100 uppercase">
-                            {currentFlash.assignedDock?.dockType === 'SCALES'
-                                ? `→ ${t.goToScales || 'SCALES'}`
-                                : `→ ${t.proceedTo || 'DOCK'} ${currentFlash.assignedDock?.dockNumber}`
-                            }
-                        </div>
-                        <div className="text-xl mt-2 text-green-200 animate-pulse">
-                            {t.proceedNow || 'PROCEED NOW!'}
+                <>
+                    {/* Black background to hide previous content */}
+                    <div className="absolute inset-0 z-40 bg-black"></div>
+                    {/* Pulsing green overlay on top */}
+                    <div className="absolute inset-0 z-50 flex items-center justify-center animate-pulse bg-gradient-to-br from-green-600 via-green-500 to-green-700">
+                        <div className="text-center">
+                            <div className="text-6xl font-mono font-black tracking-wider mb-2 text-white drop-shadow-lg animate-bounce">
+                                {currentFlash.truckPlate}
+                            </div>
+                            <div className="text-3xl font-bold text-green-100 uppercase">
+                                {currentFlash.assignedDock?.dockType === 'SCALES'
+                                    ? `\u2192 ${t.goToScales || 'SCALES'}`
+                                    : `\u2192 ${t.proceedTo || 'DOCK'} ${currentFlash.assignedDock?.dockNumber}`
+                                }
+                            </div>
+                            <div className="text-xl mt-2 text-green-200 animate-pulse">
+                                {t.proceedNow || 'PROCEED NOW!'}
+                            </div>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             {/* Header Bar */}
