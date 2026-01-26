@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Thermometer } from 'lucide-react';
+import { Thermometer, Scale } from 'lucide-react';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
 
 interface TruckVisit {
@@ -247,8 +247,8 @@ function DisplayContent() {
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
                                             <span className="text-xs text-yellow-300 uppercase font-bold">{t.weighing}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-2xl rounded">
-                                                W
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-1 rounded flex items-center justify-center">
+                                                <Scale className="w-6 h-6" />
                                             </div>
                                         </>
                                     ) : (
@@ -263,8 +263,8 @@ function DisplayContent() {
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
                                             <span className="text-xs text-yellow-300 uppercase font-bold">{t.atScales}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-2xl rounded">
-                                                W
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-1 rounded flex items-center justify-center">
+                                                <Scale className="w-6 h-6" />
                                             </div>
                                         </>
                                     ) : (
@@ -279,8 +279,8 @@ function DisplayContent() {
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
                                             <span className="text-xs text-yellow-300 uppercase font-bold">{t.goToScales}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-0.5 text-2xl rounded animate-pulse">
-                                                W
+                                            <div className="bg-yellow-300 text-black font-black px-3 py-1 rounded flex items-center justify-center animate-pulse">
+                                                <Scale className="w-6 h-6" />
                                             </div>
                                         </>
                                     ) : (
