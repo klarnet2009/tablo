@@ -144,30 +144,30 @@ function DisplayContent() {
                     <div className="absolute inset-0 z-40 bg-black"></div>
                     {/* Pulsing green overlay on top */}
                     <div className="absolute inset-0 z-50 flex items-center justify-center animate-pulse bg-gradient-to-br from-green-600 via-green-500 to-green-700">
-                        <div className="flex flex-col items-center gap-4 w-full px-4">
-                            {/* Plate Number */}
-                            <div className="text-7xl font-mono font-black tracking-wider text-white drop-shadow-2xl animate-bounce">
+                        <div className="flex flex-col items-center gap-2 w-full px-4">
+                            {/* Plate Number - smaller to fit */}
+                            <div className="text-4xl font-mono font-black tracking-wider text-white drop-shadow-lg">
                                 {currentFlash.truckPlate}
                             </div>
 
-                            {/* Destination Box - Large & Distinct */}
-                            <div className="flex flex-col items-center justify-center w-full max-w-lg bg-black/40 backdrop-blur-sm rounded-xl p-4 border-4 border-white/50">
-                                <div className="text-2xl text-green-100 uppercase tracking-widest font-bold mb-1">
-                                    {currentFlash.assignedDock?.dockType === 'SCALES' ? t.goToScales : t.proceedTo}
-                                </div>
-                                <div className={`text-6xl font-black px-8 py-2 rounded-lg shadow-xl ${currentFlash.assignedDock?.dockType === 'SCALES'
-                                        ? 'bg-yellow-400 text-black'
-                                        : 'bg-white text-black'
-                                    }`}>
-                                    {currentFlash.assignedDock?.dockType === 'SCALES'
-                                        ? t.scales
-                                        : `${t.dock} ${currentFlash.assignedDock?.dockNumber}`
-                                    }
-                                </div>
+                            {/* Destination - label + large number */}
+                            <div className="text-xl text-green-100 uppercase tracking-widest font-bold">
+                                {currentFlash.assignedDock?.dockType === 'SCALES' ? t.goToScales : t.proceedTo}
+                            </div>
+
+                            {/* Large highlighted NUMBER only */}
+                            <div className={`text-7xl font-black px-10 py-2 rounded-lg shadow-xl ${currentFlash.assignedDock?.dockType === 'SCALES'
+                                    ? 'bg-yellow-400 text-black'
+                                    : 'bg-white text-black'
+                                }`}>
+                                {currentFlash.assignedDock?.dockType === 'SCALES'
+                                    ? '⚖'
+                                    : currentFlash.assignedDock?.dockNumber
+                                }
                             </div>
 
                             {/* Action Text */}
-                            <div className="text-3xl font-black text-white uppercase tracking-widest animate-pulse mt-2 drop-shadow-lg">
+                            <div className="text-2xl font-black text-white uppercase tracking-widest animate-pulse drop-shadow-lg">
                                 {t.proceedNow}
                             </div>
                         </div>
