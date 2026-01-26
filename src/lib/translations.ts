@@ -12,6 +12,7 @@ export interface DisplayTranslations {
     atDock: string;
     goToScales: string;
     proceedTo: string;
+    proceedNow: string;
     waiting: string;
     noTrucks: string;
 }
@@ -28,6 +29,7 @@ const translations: Record<Locale, DisplayTranslations> = {
         atDock: 'AT DOCK',
         goToScales: 'GO TO SCALES',
         proceedTo: 'PROCEED TO',
+        proceedNow: 'PROCEED NOW!',
         waiting: 'WAITING',
         noTrucks: 'NO TRUCKS IN QUEUE',
     },
@@ -42,6 +44,7 @@ const translations: Record<Locale, DisplayTranslations> = {
         atDock: 'PRZY DOKU',
         goToScales: 'IDŹCIE NA WAGĘ',
         proceedTo: 'PRZEJDŹ DO',
+        proceedNow: 'JEDŹ TERAZ!',
         waiting: 'OCZEKIWANIE',
         noTrucks: 'BRAK CIĘŻARÓWEK W KOLEJCE',
     },

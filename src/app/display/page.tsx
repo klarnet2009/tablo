@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Thermometer } from 'lucide-react';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
@@ -93,6 +93,28 @@ function DisplayContent() {
         .filter(v => v.status === 'WAITING')
         .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
+    // Flash notification system
+    const [currentFlash, setCurrentFlash] = useState<TruckVisit | null>(null);
+    const previousVisitsRef = useRef<TruckVisit[]>([]);
+
+    useEffect(() => {
+        const prevCalled = previousVisitsRef.current.filter(v => v.status === 'CALLED');
+        const currCalled = visits.filter(v => v.status === 'CALLED');
+
+        // Find newly CALLED truck (exists in current but not in previous)
+        const newCalled = currCalled.find(v =>
+            !prevCalled.some(p => p.id === v.id)
+        );
+
+        if (newCalled && previousVisitsRef.current.length > 0) {
+            setCurrentFlash(newCalled);
+            const timer = setTimeout(() => setCurrentFlash(null), 5000);
+            return () => clearTimeout(timer);
+        }
+
+        previousVisitsRef.current = visits;
+    }, [visits]);
+
     // Pagination for small screen if too many items
     const [page, setPage] = useState(0);
     const itemsPerPage = 3; // Fits vertically on 224px height
@@ -115,6 +137,26 @@ function DisplayContent() {
 
     return (
         <div className="w-[576px] h-[224px] bg-black text-white overflow-hidden p-2 flex flex-col relative">
+            {/* Flash Notification Overlay */}
+            {currentFlash && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center animate-pulse bg-gradient-to-br from-green-600 via-green-500 to-green-700">
+                    <div className="text-center">
+                        <div className="text-6xl font-mono font-black tracking-wider mb-2 text-white drop-shadow-lg animate-bounce">
+                            {currentFlash.truckPlate}
+                        </div>
+                        <div className="text-3xl font-bold text-green-100 uppercase">
+                            {currentFlash.assignedDock?.dockType === 'SCALES'
+                                ? `→ ${t.goToScales || 'SCALES'}`
+                                : `→ ${t.proceedTo || 'DOCK'} ${currentFlash.assignedDock?.dockNumber}`
+                            }
+                        </div>
+                        <div className="text-xl mt-2 text-green-200 animate-pulse">
+                            {t.proceedNow || 'PROCEED NOW!'}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header Bar */}
             <div className="flex items-center justify-between border-b-2 border-slate-700 pb-1 mb-1">
                 <div className="flex items-center gap-2">
