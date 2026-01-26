@@ -97,6 +97,19 @@ function DisplayContent() {
     const [currentFlash, setCurrentFlash] = useState<TruckVisit | null>(null);
     const previousVisitsRef = useRef<TruckVisit[]>([]);
 
+    // Fast language rotation for flash notification (1 second)
+    const [flashLocaleIndex, setFlashLocaleIndex] = useState(0);
+    useEffect(() => {
+        if (!currentFlash) return;
+        const timer = setInterval(() => {
+            setFlashLocaleIndex(i => (i + 1) % locales.length);
+        }, 1000); // 1 second rotation during flash
+        return () => clearInterval(timer);
+    }, [currentFlash, locales.length]);
+
+    // Use fast-rotating locale for flash, normal for rest
+    const flashT = getTranslations(locales[flashLocaleIndex]);
+
     useEffect(() => {
         const prevCalled = previousVisitsRef.current.filter(v => v.status === 'CALLED');
         const currCalled = visits.filter(v => v.status === 'CALLED');
@@ -108,6 +121,7 @@ function DisplayContent() {
 
         if (newCalled && previousVisitsRef.current.length > 0) {
             setCurrentFlash(newCalled);
+            setFlashLocaleIndex(0); // Reset to first language
             const timer = setTimeout(() => setCurrentFlash(null), 5000);
             return () => clearTimeout(timer);
         }
@@ -144,21 +158,21 @@ function DisplayContent() {
                     <div className="absolute inset-0 z-40 bg-black"></div>
                     {/* Pulsing green overlay on top */}
                     <div className="absolute inset-0 z-50 flex items-center justify-center animate-pulse bg-gradient-to-br from-green-600 via-green-500 to-green-700">
-                        <div className="flex flex-col items-center gap-2 w-full px-4">
-                            {/* Plate Number - smaller to fit */}
-                            <div className="text-4xl font-mono font-black tracking-wider text-white drop-shadow-lg">
+                        <div className="flex flex-col items-center gap-1 w-full px-4">
+                            {/* MAIN: Plate Number - Large and prominent */}
+                            <div className="text-6xl font-mono font-black tracking-wider text-white drop-shadow-2xl animate-bounce">
                                 {currentFlash.truckPlate}
                             </div>
 
-                            {/* Destination - label + large number */}
-                            <div className="text-xl text-green-100 uppercase tracking-widest font-bold">
-                                {currentFlash.assignedDock?.dockType === 'SCALES' ? t.goToScales : t.proceedTo}
+                            {/* Destination label */}
+                            <div className="text-lg text-green-100 uppercase tracking-widest font-bold mt-2">
+                                {currentFlash.assignedDock?.dockType === 'SCALES' ? flashT.goToScales : flashT.proceedTo}
                             </div>
 
-                            {/* Large highlighted NUMBER only */}
-                            <div className={`text-7xl font-black px-10 py-2 rounded-lg shadow-xl ${currentFlash.assignedDock?.dockType === 'SCALES'
-                                    ? 'bg-yellow-400 text-black'
-                                    : 'bg-white text-black'
+                            {/* Dock/Scales indicator - smaller, secondary */}
+                            <div className={`text-5xl font-black px-8 py-1 rounded-lg shadow-xl ${currentFlash.assignedDock?.dockType === 'SCALES'
+                                ? 'bg-yellow-400 text-black'
+                                : 'bg-white text-black'
                                 }`}>
                                 {currentFlash.assignedDock?.dockType === 'SCALES'
                                     ? '⚖'
@@ -167,8 +181,8 @@ function DisplayContent() {
                             </div>
 
                             {/* Action Text */}
-                            <div className="text-2xl font-black text-white uppercase tracking-widest animate-pulse drop-shadow-lg">
-                                {t.proceedNow}
+                            <div className="text-xl font-black text-white uppercase tracking-widest animate-pulse drop-shadow-lg mt-1">
+                                {flashT.proceedNow}
                             </div>
                         </div>
                     </div>
