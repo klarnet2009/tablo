@@ -144,18 +144,31 @@ function DisplayContent() {
                     <div className="absolute inset-0 z-40 bg-black"></div>
                     {/* Pulsing green overlay on top */}
                     <div className="absolute inset-0 z-50 flex items-center justify-center animate-pulse bg-gradient-to-br from-green-600 via-green-500 to-green-700">
-                        <div className="text-center">
-                            <div className="text-6xl font-mono font-black tracking-wider mb-2 text-white drop-shadow-lg animate-bounce">
+                        <div className="flex flex-col items-center gap-4 w-full px-4">
+                            {/* Plate Number */}
+                            <div className="text-7xl font-mono font-black tracking-wider text-white drop-shadow-2xl animate-bounce">
                                 {currentFlash.truckPlate}
                             </div>
-                            <div className="text-3xl font-bold text-green-100 uppercase">
-                                {currentFlash.assignedDock?.dockType === 'SCALES'
-                                    ? `\u2192 ${t.goToScales || 'SCALES'}`
-                                    : `\u2192 ${t.proceedTo || 'DOCK'} ${currentFlash.assignedDock?.dockNumber}`
-                                }
+
+                            {/* Destination Box - Large & Distinct */}
+                            <div className="flex flex-col items-center justify-center w-full max-w-lg bg-black/40 backdrop-blur-sm rounded-xl p-4 border-4 border-white/50">
+                                <div className="text-2xl text-green-100 uppercase tracking-widest font-bold mb-1">
+                                    {currentFlash.assignedDock?.dockType === 'SCALES' ? t.goToScales : t.proceedTo}
+                                </div>
+                                <div className={`text-6xl font-black px-8 py-2 rounded-lg shadow-xl ${currentFlash.assignedDock?.dockType === 'SCALES'
+                                        ? 'bg-yellow-400 text-black'
+                                        : 'bg-white text-black'
+                                    }`}>
+                                    {currentFlash.assignedDock?.dockType === 'SCALES'
+                                        ? t.scales
+                                        : `${t.dock} ${currentFlash.assignedDock?.dockNumber}`
+                                    }
+                                </div>
                             </div>
-                            <div className="text-xl mt-2 text-green-200 animate-pulse">
-                                {t.proceedNow || 'PROCEED NOW!'}
+
+                            {/* Action Text */}
+                            <div className="text-3xl font-black text-white uppercase tracking-widest animate-pulse mt-2 drop-shadow-lg">
+                                {t.proceedNow}
                             </div>
                         </div>
                     </div>
