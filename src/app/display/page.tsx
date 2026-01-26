@@ -197,12 +197,12 @@ function DisplayContent() {
                 </div>
                 <div className="flex items-center gap-3">
                     {weather && (
-                        <div className="flex items-center gap-1 text-sm text-cyan-400">
-                            <Thermometer className="w-4 h-4" />
+                        <div className="flex items-center gap-1 text-lg text-cyan-400">
+                            <Thermometer className="w-5 h-5" />
                             <span className="font-bold">{weather.temp}°C</span>
                         </div>
                     )}
-                    <div className="text-xl font-mono font-bold text-yellow-500">{currentTime}</div>
+                    <div className="text-2xl font-mono font-bold text-yellow-500">{currentTime}</div>
                 </div>
             </div>
 
