@@ -96,6 +96,7 @@ function DisplayContent() {
     // Flash notification system
     const [currentFlash, setCurrentFlash] = useState<TruckVisit | null>(null);
     const previousVisitsRef = useRef<TruckVisit[]>([]);
+    const shownFlashIdsRef = useRef<Set<string>>(new Set()); // Track already shown flashes
 
     // Fast language rotation for flash notification (1 second)
     const [flashLocaleIndex, setFlashLocaleIndex] = useState(0);
@@ -111,22 +112,34 @@ function DisplayContent() {
     const flashT = getTranslations(locales[flashLocaleIndex]);
 
     useEffect(() => {
+        // Skip if no previous data (initial load)
+        if (previousVisitsRef.current.length === 0) {
+            previousVisitsRef.current = visits;
+            return;
+        }
+
         const prevCalled = previousVisitsRef.current.filter(v => v.status === 'CALLED');
         const currCalled = visits.filter(v => v.status === 'CALLED');
 
-        // Find newly CALLED truck (exists in current but not in previous)
+        // Find newly CALLED truck:
+        // 1. Exists in current CALLED list
+        // 2. Was NOT in previous CALLED list
+        // 3. Has NOT been shown as flash before
         const newCalled = currCalled.find(v =>
-            !prevCalled.some(p => p.id === v.id)
+            !prevCalled.some(p => p.id === v.id) &&
+            !shownFlashIdsRef.current.has(v.id)
         );
 
-        if (newCalled && previousVisitsRef.current.length > 0) {
+        // Update ref BEFORE showing flash
+        previousVisitsRef.current = visits;
+
+        if (newCalled) {
+            shownFlashIdsRef.current.add(newCalled.id);
             setCurrentFlash(newCalled);
             setFlashLocaleIndex(0); // Reset to first language
             const timer = setTimeout(() => setCurrentFlash(null), 5000);
             return () => clearTimeout(timer);
         }
-
-        previousVisitsRef.current = visits;
     }, [visits]);
 
     // Pagination for small screen if too many items
