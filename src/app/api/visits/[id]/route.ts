@@ -97,7 +97,7 @@ export async function PATCH(
         return NextResponse.json(updatedVisit);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: (error as z.ZodError).errors }, { status: 400 });
+            return NextResponse.json({ error: error.issues }, { status: 400 });
         }
         console.error('Error updating visit:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
