@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS TruckVisit (
     orderRef TEXT,
     priority TEXT DEFAULT 'NORMAL',
     status TEXT DEFAULT 'NEW',
+    scheduledAt TEXT,
     assignedDockId TEXT REFERENCES Dock(id),
     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
     arrivedAt TEXT,
@@ -101,7 +102,14 @@ EOF
     
     echo "Database initialized successfully."
 else
-    echo "Database already initialized. Skipping setup."
+    echo "Database already initialized. Checking for schema updates..."
+    
+    # Add scheduledAt column if it doesn't exist
+    sqlite3 "$DB_PATH" "SELECT scheduledAt FROM TruckVisit LIMIT 1;" 2>/dev/null || {
+        echo "Adding scheduledAt column..."
+        sqlite3 "$DB_PATH" "ALTER TABLE TruckVisit ADD COLUMN scheduledAt TEXT;"
+        echo "Migration completed."
+    }
 fi
 
 # Start the application
