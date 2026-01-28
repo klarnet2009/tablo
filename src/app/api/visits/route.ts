@@ -15,6 +15,7 @@ const createVisitSchema = z.object({
     loadType: z.enum(['INBOUND', 'OUTBOUND', 'MIXED']).default('INBOUND'),
     orderRef: z.string().optional(),
     priority: z.enum(['NORMAL', 'HIGH', 'URGENT', 'SLA']).default('NORMAL'),
+    scheduledAt: z.string().optional(),
     notes: z.string().optional(),
     flags: z.array(z.string()).optional(),
 });
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     if (active === 'true') {
         where.status = {
-            in: ['NEW', 'ARRIVED', 'WAITING', 'CALLED', 'DOCKED', 'IN_SERVICE', 'HOLD'],
+            in: ['PLANNED', 'NEW', 'ARRIVED', 'WAITING', 'CALLED', 'DOCKED', 'IN_SERVICE', 'HOLD'],
         };
     }
 
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
             where: {
                 truckPlate: data.truckPlate,
                 status: {
-                    in: ['NEW', 'ARRIVED', 'WAITING', 'CALLED', 'DOCKED', 'IN_SERVICE', 'HOLD'],
+                    in: ['PLANNED', 'NEW', 'ARRIVED', 'WAITING', 'CALLED', 'DOCKED', 'IN_SERVICE', 'HOLD'],
                 },
             },
         });
@@ -117,9 +118,18 @@ export async function POST(request: NextRequest) {
         });
         const nextPosition = (lastInQueue?.queuePosition || 0) + 1;
 
+        // Convert scheduledAt time string to Date if provided
+        let scheduledAtDate: Date | null = null;
+        if (data.scheduledAt) {
+            const today = new Date();
+            const [hours, minutes] = data.scheduledAt.split(':');
+            scheduledAtDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
+        }
+
         const visit = await prisma.truckVisit.create({
             data: {
                 ...data,
+                scheduledAt: scheduledAtDate,
                 flags: data.flags ? JSON.stringify(data.flags) : null,
                 status: 'ARRIVED',
                 arrivedAt: new Date(),
