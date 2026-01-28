@@ -9,6 +9,9 @@ services:
       - DATABASE_URL=file:/app/data/tablo.db
       - NEXTAUTH_SECRET=your-secret-key-change-in-production
       - NEXTAUTH_URL=http://localhost:3000
+      - EXTERNAL_API_URL=http://your-api-server:port
+      - EXTERNAL_API_USERNAME=your-username
+      - EXTERNAL_API_PASSWORD=your-password
     volumes:
       - tablo_data:/app/data
     healthcheck:
