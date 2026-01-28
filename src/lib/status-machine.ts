@@ -2,6 +2,7 @@
 // Implements the state machine from the implementation plan
 
 export type VisitStatus =
+    | 'PLANNED'
     | 'NEW'
     | 'ARRIVED'
     | 'WAITING'
@@ -18,6 +19,7 @@ export type UserRole = 'SECURITY' | 'DISPATCHER' | 'SUPERVISOR' | 'ADMIN';
 
 // Define valid transitions: from -> [to states]
 const validTransitions: Record<VisitStatus, VisitStatus[]> = {
+    PLANNED: ['ARRIVED', 'CANCELLED'],
     NEW: ['ARRIVED', 'CANCELLED'],
     ARRIVED: ['WAITING', 'CANCELLED'],
     WAITING: ['CALLED', 'HOLD', 'CANCELLED'],
@@ -33,6 +35,8 @@ const validTransitions: Record<VisitStatus, VisitStatus[]> = {
 
 // Define who can trigger each transition
 const transitionPermissions: Record<string, UserRole[]> = {
+    'PLANNED->ARRIVED': ['SECURITY', 'DISPATCHER', 'SUPERVISOR', 'ADMIN'],
+    'PLANNED->CANCELLED': ['DISPATCHER', 'SUPERVISOR', 'ADMIN'],
     'NEW->ARRIVED': ['SECURITY', 'DISPATCHER', 'SUPERVISOR', 'ADMIN'],
     'NEW->CANCELLED': ['DISPATCHER', 'SUPERVISOR', 'ADMIN'],
     'ARRIVED->WAITING': ['SECURITY', 'DISPATCHER', 'SUPERVISOR', 'ADMIN'],
@@ -72,6 +76,7 @@ export function getAvailableTransitions(from: VisitStatus, role: UserRole): Visi
 // Timestamp field to update for each status
 export function getTimestampField(status: VisitStatus): string | null {
     const fieldMap: Record<VisitStatus, string | null> = {
+        PLANNED: null,
         NEW: null,
         ARRIVED: 'arrivedAt',
         WAITING: null,
@@ -89,6 +94,7 @@ export function getTimestampField(status: VisitStatus): string | null {
 
 // Status display info
 export const statusInfo: Record<VisitStatus, { label: string; color: string; bgColor: string }> = {
+    PLANNED: { label: 'Planned', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
     NEW: { label: 'New', color: 'text-gray-600', bgColor: 'bg-gray-100' },
     ARRIVED: { label: 'Arrived', color: 'text-blue-600', bgColor: 'bg-blue-100' },
     WAITING: { label: 'Waiting', color: 'text-yellow-600', bgColor: 'bg-yellow-100' },

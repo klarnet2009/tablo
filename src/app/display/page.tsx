@@ -4,11 +4,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Thermometer, Scale } from 'lucide-react';
+import Image from 'next/image';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
 
 interface TruckVisit {
     id: string;
     truckPlate: string;
+    trailerPlate?: string;
+    carrier?: string;
     status: string;
     queuePosition?: number;
     assignedDock?: { name: string; dockNumber: number; dockType: string };
@@ -173,8 +176,15 @@ function DisplayContent() {
                     <div className="absolute inset-0 z-50 flex items-center justify-center animate-pulse bg-gradient-to-br from-green-600 via-green-500 to-green-700">
                         <div className="flex flex-col items-center gap-1 w-full px-4">
                             {/* MAIN: Plate Number - Large and prominent */}
+                            {/* Fallback: truck plate -> trailer plate -> carrier */}
                             <div className="text-6xl font-mono font-black tracking-wider text-white drop-shadow-2xl animate-bounce">
-                                {currentFlash.truckPlate}
+                                {(() => {
+                                    const isValid = (val?: string) => val && val.trim() && val.trim() !== '-' && val.trim() !== '—' && val.trim() !== 'N/A';
+                                    if (isValid(currentFlash.truckPlate)) return currentFlash.truckPlate;
+                                    if (isValid(currentFlash.trailerPlate)) return currentFlash.trailerPlate;
+                                    if (isValid(currentFlash.carrier)) return currentFlash.carrier;
+                                    return 'TRUCK';
+                                })()}
                             </div>
 
                             {/* Destination label */}
@@ -205,7 +215,9 @@ function DisplayContent() {
             {/* Header Bar */}
             <div className="flex items-center justify-between border-b-2 border-slate-700 pb-1 mb-1">
                 <div className="flex items-center gap-2">
-                    <div className="bg-blue-600 px-2 py-0.5 rounded text-lg font-bold">ITERUM</div>
+                    <div className="px-2 py-1.5 rounded" style={{ backgroundColor: '#7CBD6E' }}>
+                        <Image src="/logo.png" alt="Company Logo" width={100} height={40} className="h-6 w-auto" unoptimized />
+                    </div>
                     <div className="text-sm text-slate-400 uppercase tracking-wider">{t.queueStatus}</div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -222,10 +234,9 @@ function DisplayContent() {
             {/* Main Content Table - Optimized for readability from distance */}
             <div className="flex-1 flex flex-col gap-1">
                 {/* Table Header */}
-                <div className="grid grid-cols-6 gap-2 text-xs text-slate-500 font-bold uppercase px-2">
-                    <div className="col-span-1">{t.pos}</div>
-                    <div className="col-span-2">{t.plateNumber}</div>
-                    <div className="col-span-3 text-right">{t.dockStatus}</div>
+                <div className="grid grid-cols-8 gap-2 text-xs text-slate-500 font-bold uppercase px-2">
+                    <div className="col-span-6">{t.plateNumber}</div>
+                    <div className="col-span-2 text-right">{t.dockStatus}</div>
                 </div>
 
                 {/* Rows */}
@@ -239,7 +250,7 @@ function DisplayContent() {
                     return (
                         <div
                             key={visit.id}
-                            className={`grid grid-cols-6 gap-2 items-center px-2 py-1 rounded ${isActive
+                            className={`grid grid-cols-8 gap-2 items-center px-2 py-1 rounded ${isActive
                                 ? isLoading
                                     ? 'bg-indigo-900/40 border-l-4 border-indigo-500'
                                     : isDocked
@@ -248,14 +259,34 @@ function DisplayContent() {
                                 : 'bg-slate-900 border-l-4 border-slate-700'
                                 }`}
                         >
-                            <div className="col-span-1 font-mono text-xl text-slate-400">
-                                #{isActive ? '' : visit.queuePosition || globalIdx}
+                            <div className={`col-span-6 font-mono text-2xl font-bold tracking-wider overflow-hidden ${isLoading ? 'text-indigo-400' : isDocked ? 'text-blue-400' : isCalled ? 'text-green-400' : 'text-white'}`}>
+                                {/* Marquee scrolling text for truck/trailer/carrier */}
+                                {(() => {
+                                    // Helper to check if value is valid (not empty, -, or whitespace)
+                                    const isValid = (val?: string) => val && val.trim() && val.trim() !== '-' && val.trim() !== '—' && val.trim() !== 'N/A';
+                                    
+                                    const parts = [
+                                        isValid(visit.truckPlate) ? visit.truckPlate : null,
+                                        isValid(visit.trailerPlate) ? visit.trailerPlate : null,
+                                        isValid(visit.carrier) ? visit.carrier : null,
+                                    ].filter(Boolean);
+                                    
+                                    // If no truck plate, just show carrier or "UNKNOWN"
+                                    const text = parts.length > 0 ? parts.join(' | ') : 'UNKNOWN';
+                                    const needsScroll = text.length > (isActive ? 12 : 16);
+                                    
+                                    return needsScroll ? (
+                                        <div key={`marquee-${visit.id}`} className="marquee-container">
+                                            <span className="marquee-text" style={{ animationDelay: `${idx * 0.5}s` }}>
+                                                {text}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{text}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span>{text}</span>
+                                    );
+                                })()}
                             </div>
-                            <div className={`col-span-2 font-mono text-2xl font-bold tracking-wider ${isLoading ? 'text-indigo-400' : isDocked ? 'text-blue-400' : isCalled ? 'text-green-400' : 'text-white'
-                                }`}>
-                                {visit.truckPlate}
-                            </div>
-                            <div className="col-span-3 text-right flex items-center justify-end gap-2">
+                            <div className="col-span-2 text-right flex items-center justify-end gap-2 whitespace-nowrap">
                                 {isLoading && visit.assignedDock ? (
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
@@ -292,14 +323,14 @@ function DisplayContent() {
                                     visit.assignedDock.dockType === 'SCALES' ? (
                                         <>
                                             <span className="text-xl text-yellow-300 uppercase">{t.goToScales}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-1 rounded flex items-center justify-center animate-pulse">
-                                                <Scale className="w-6 h-6" />
+                                            <div className="bg-yellow-300 text-black font-bold text-xl rounded animate-periodic-blink flex items-center justify-center w-[2.5rem] h-[1.75rem]">
+                                                <Scale className="w-5 h-5" />
                                             </div>
                                         </>
                                     ) : (
                                         <>
                                             <span className="text-xl text-green-300 uppercase">{t.proceedTo}</span>
-                                            <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded">
+                                            <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded animate-periodic-blink min-w-[2.5rem] text-center">
                                                 {visit.assignedDock.dockNumber}
                                             </div>
                                         </>

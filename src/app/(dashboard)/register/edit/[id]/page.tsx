@@ -1,16 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Truck, ArrowLeft, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Truck, ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 
-export default function RegisterPage() {
+export default function EditVisitPage() {
     const router = useRouter();
+    const params = useParams();
     const queryClient = useQueryClient();
-    const [success, setSuccess] = useState(false);
-    const [createdPlate, setCreatedPlate] = useState('');
+    const visitId = params.id as string;
 
     const [form, setForm] = useState({
         truckPlate: '',
@@ -25,23 +25,50 @@ export default function RegisterPage() {
         notes: '',
     });
 
+    const { data: visit, isLoading } = useQuery({
+        queryKey: ['visit', visitId],
+        queryFn: async () => {
+            const res = await fetch(`/api/visits/${visitId}`);
+            if (!res.ok) throw new Error('Failed to fetch visit');
+            return res.json();
+        },
+        enabled: !!visitId,
+    });
+
+    useEffect(() => {
+        if (visit) {
+            setForm({
+                truckPlate: visit.truckPlate || '',
+                trailerPlate: visit.trailerPlate || '',
+                carrier: visit.carrier || '',
+                driverName: visit.driverName || '',
+                driverPhone: visit.driverPhone || '',
+                loadType: visit.loadType || 'INBOUND',
+                orderRef: visit.orderRef || '',
+                priority: visit.priority || 'NORMAL',
+                scheduledAt: visit.scheduledAt ? new Date(visit.scheduledAt).toTimeString().slice(0, 5) : '',
+                notes: visit.notes || '',
+            });
+        }
+    }, [visit]);
+
     const mutation = useMutation({
         mutationFn: async (data: typeof form) => {
-            const res = await fetch('/api/visits', {
-                method: 'POST',
+            const res = await fetch(`/api/visits/${visitId}`, {
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
             });
             if (!res.ok) {
                 const error = await res.json();
-                throw new Error(error.error || 'Failed to register truck');
+                throw new Error(error.error || 'Failed to update visit');
             }
             return res.json();
         },
-        onSuccess: (data) => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['visits'] });
-            setCreatedPlate(data.truckPlate);
-            setSuccess(true);
+            queryClient.invalidateQueries({ queryKey: ['visit', visitId] });
+            router.push('/');
         },
     });
 
@@ -50,49 +77,11 @@ export default function RegisterPage() {
         mutation.mutate(form);
     };
 
-    const handleReset = () => {
-        setForm({
-            truckPlate: '',
-            trailerPlate: '',
-            carrier: '',
-            driverName: '',
-            driverPhone: '',
-            loadType: 'INBOUND',
-            orderRef: '',
-            priority: 'NORMAL',
-            scheduledAt: '',
-            notes: '',
-        });
-        setSuccess(false);
-        setCreatedPlate('');
-    };
-
-    if (success) {
+    if (isLoading) {
         return (
-            <div className="p-6 max-w-lg mx-auto">
-                <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-8 text-center">
-                    <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-white mb-2">Truck Registered!</h2>
-                    <p className="text-slate-300 mb-2">
-                        Plate: <span className="font-mono font-bold text-green-400">{createdPlate}</span>
-                    </p>
-                    <p className="text-slate-400 text-sm mb-6">
-                        The truck has been added to the queue.
-                    </p>
-                    <div className="flex gap-3 justify-center">
-                        <button
-                            onClick={handleReset}
-                            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-                        >
-                            Register Another
-                        </button>
-                        <Link
-                            href="/"
-                            className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
-                        >
-                            Go to Dashboard
-                        </Link>
-                    </div>
+            <div className="p-6 max-w-2xl mx-auto">
+                <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 </div>
             </div>
         );
@@ -107,8 +96,8 @@ export default function RegisterPage() {
                         <ArrowLeft className="w-5 h-5 text-slate-400" />
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Register Truck</h1>
-                        <p className="text-slate-400">Add a new truck to the queue</p>
+                        <h1 className="text-2xl font-bold text-white">Edit Truck Visit</h1>
+                        <p className="text-slate-400">Update truck information</p>
                     </div>
                 </div>
 
@@ -197,7 +186,7 @@ export default function RegisterPage() {
                                 onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
                                 className="w-full md:w-48 px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
-                            <p className="text-xs text-slate-500 mt-1">Expected arrival time (optional)</p>
+                            <p className="text-xs text-slate-500 mt-1">Expected arrival time</p>
                         </div>
                     </div>
 
@@ -279,9 +268,10 @@ export default function RegisterPage() {
                         <button
                             type="submit"
                             disabled={mutation.isPending}
-                            className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-600 transition disabled:opacity-50"
+                            className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            {mutation.isPending ? 'Registering...' : 'Register Truck'}
+                            <Save className="w-4 h-4" />
+                            {mutation.isPending ? 'Saving...' : 'Save Changes'}
                         </button>
                         <Link
                             href="/"

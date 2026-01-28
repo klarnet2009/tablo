@@ -62,13 +62,14 @@ model TruckVisit {
   assignedDock   Dock?   @relation(fields: [assignedDockId], references: [id])
   assignedDockId String?
   
-  createdAt  DateTime  @default(now())
-  arrivedAt  DateTime?
-  calledAt   DateTime?
-  dockedAt   DateTime?
-  startedAt  DateTime?
-  finishedAt DateTime?
-  leftAt     DateTime?
+  createdAt   DateTime  @default(now())
+  scheduledAt DateTime?
+  arrivedAt   DateTime?
+  calledAt    DateTime?
+  dockedAt    DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  leftAt      DateTime?
   
   notes         String?
   flags         String?
