@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
         }
 
         const createdVisits = [];
-        const skippedVisits = [];
+        const updatedVisits = [];
 
         for (const cargo of cargos) {
-            // Check if a visit with this external reference already exists
+            // Check if a visit with this external reference already exists (active visit)
             const existingVisit = await prisma.truckVisit.findFirst({
                 where: {
                     orderRef: cargo.orderRef,
@@ -34,10 +34,20 @@ export async function POST(request: NextRequest) {
             });
 
             if (existingVisit) {
-                skippedVisits.push({
-                    orderRef: cargo.orderRef,
-                    reason: 'Already exists',
+                // Update existing visit but preserve status
+                const updated = await prisma.truckVisit.update({
+                    where: { id: existingVisit.id },
+                    data: {
+                        truckPlate: cargo.truckPlate || existingVisit.truckPlate,
+                        trailerPlate: cargo.trailerPlate ?? existingVisit.trailerPlate,
+                        carrier: cargo.carrier ?? existingVisit.carrier,
+                        loadType: cargo.loadType === 'OUTBOUND' ? 'OUTBOUND' : 'INBOUND',
+                        scheduledAt: cargo.scheduledAt ? new Date(cargo.scheduledAt) : existingVisit.scheduledAt,
+                        notes: cargo.notes || cargo.externalTitle || existingVisit.notes,
+                        // Status is NOT updated - preserve current status
+                    },
                 });
+                updatedVisits.push(updated);
                 continue;
             }
 
@@ -63,8 +73,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             imported: createdVisits.length,
-            skipped: skippedVisits.length,
-            skippedDetails: skippedVisits,
+            updated: updatedVisits.length,
         });
     } catch (error) {
         console.error('Error importing cargo visits:', error);

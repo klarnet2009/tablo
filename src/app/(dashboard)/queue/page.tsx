@@ -200,11 +200,11 @@ export default function QueuePage() {
             <div key={visit.id} className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-4 hover:border-slate-600 transition">
                 <div className="flex items-start justify-between mb-3">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-lg font-bold text-white">{visit.truckPlate}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-lg font-bold text-white whitespace-nowrap">{visit.truckPlate}</span>
                             <PriorityBadge priority={visit.priority} size="sm" />
                         </div>
-                        <p className="text-sm text-slate-400">{visit.carrier || 'Unknown carrier'}</p>
+                        <p className="text-sm text-slate-400 truncate max-w-[180px]">{visit.carrier || 'Unknown carrier'}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
@@ -233,18 +233,18 @@ export default function QueuePage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                    <div className="text-slate-400">
-                        Type: <span className="text-slate-300">{visit.loadType}</span>
-                    </div>
-                    {visit.scheduledAt && (
-                        <div className="text-slate-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span className="text-cyan-400 font-medium">
-                                {new Date(visit.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                <div className="space-y-1 text-sm mb-3">
+                    <div className="flex items-center justify-between text-slate-400">
+                        <span>Type: <span className="text-slate-300">{visit.loadType}</span></span>
+                        {visit.scheduledAt && (
+                            <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span className="text-cyan-400 font-medium">
+                                    {new Date(visit.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                </span>
                             </span>
-                        </div>
-                    )}
+                        )}
+                    </div>
                     {visit.assignedDock && (
                         <div className="text-slate-400 flex items-center gap-1">
                             Dock:
@@ -267,8 +267,8 @@ export default function QueuePage() {
                         </div>
                     )}
                     {visit.orderRef && (
-                        <div className="text-slate-400">
-                            Ref: <span className="text-slate-300">{visit.orderRef}</span>
+                        <div className="text-slate-400 truncate" title={visit.orderRef}>
+                            Ref: <span className="text-slate-300 font-mono text-xs">{visit.orderRef}</span>
                         </div>
                     )}
                 </div>
@@ -283,6 +283,7 @@ export default function QueuePage() {
                             const waitingColor = visit.status === 'ARRIVED' ? 'bg-green-500 hover:bg-green-600' : 'bg-slate-500 hover:bg-slate-600';
 
                             const actionConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+                                ARRIVED: { label: 'Mark Arrived', icon: <Truck className="w-3 h-3" />, color: 'bg-blue-500 hover:bg-blue-600' },
                                 CALLED: { label: 'Call to Dock', icon: <Play className="w-3 h-3" />, color: 'bg-green-500 hover:bg-green-600' },
                                 DOCKED: { label: 'At Dock', icon: <Truck className="w-3 h-3" />, color: 'bg-blue-500 hover:bg-blue-600' },
                                 IN_SERVICE: { label: 'Start Loading', icon: <Play className="w-3 h-3" />, color: 'bg-indigo-500 hover:bg-indigo-600' },
@@ -366,6 +367,19 @@ export default function QueuePage() {
                     <Trash2 className="w-4 h-4" />
                     Clear All
                 </button>
+                <button
+                    onClick={async () => {
+                        try {
+                            await fetch('/api/display/warning-trigger', { method: 'POST' });
+                        } catch {
+                            // Ignore errors
+                        }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition font-medium"
+                    title="Show parking warning on display"
+                >
+                    ⚠️ Parking Warning
+                </button>
             </div>
 
             {isLoading ? (
@@ -373,9 +387,9 @@ export default function QueuePage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6">
+                <div className="flex gap-4 overflow-x-auto pb-4">
                     {/* Planned Column */}
-                    <div>
+                    <div className="flex-1 min-w-[16rem]">
                         <div className="flex items-center gap-2 mb-4">
                             <Calendar className="w-5 h-5 text-cyan-400" />
                             <h2 className="text-lg font-semibold text-white">Planned ({planned.length})</h2>
@@ -389,7 +403,7 @@ export default function QueuePage() {
                     </div>
 
                     {/* Arrived Column */}
-                    <div>
+                    <div className="flex-1 min-w-[16rem]">
                         <div className="flex items-center gap-2 mb-4">
                             <Truck className="w-5 h-5 text-blue-400" />
                             <h2 className="text-lg font-semibold text-white">Arrived ({arrived.length})</h2>
@@ -403,7 +417,7 @@ export default function QueuePage() {
                     </div>
 
                     {/* Waiting Column */}
-                    <div>
+                    <div className="flex-1 min-w-[16rem]">
                         <div className="flex items-center gap-2 mb-4">
                             <Clock className="w-5 h-5 text-yellow-400" />
                             <h2 className="text-lg font-semibold text-white">Waiting ({waiting.length})</h2>
@@ -417,7 +431,7 @@ export default function QueuePage() {
                     </div>
 
                     {/* In Progress Column */}
-                    <div>
+                    <div className="flex-1 min-w-[16rem]">
                         <div className="flex items-center gap-2 mb-4">
                             <Truck className="w-5 h-5 text-blue-400" />
                             <h2 className="text-lg font-semibold text-white">In Progress ({called.length + docked.length + inService.length})</h2>
@@ -431,7 +445,7 @@ export default function QueuePage() {
                     </div>
 
                     {/* On Hold Column */}
-                    <div>
+                    <div className="flex-1 min-w-[16rem]">
                         <div className="flex items-center gap-2 mb-4">
                             <Pause className="w-5 h-5 text-amber-400" />
                             <h2 className="text-lg font-semibold text-white">On Hold ({onHold.length})</h2>
@@ -595,7 +609,6 @@ export default function QueuePage() {
                                                     setShowCargoModal(false);
                                                     setCargoData([]);
                                                     queryClient.invalidateQueries({ queryKey: ['visits'] });
-                                                    alert(`Imported ${result.imported} visit(s) as PLANNED. ${result.skipped > 0 ? `Skipped ${result.skipped} duplicate(s).` : ''}`);
                                                 }
                                             } catch (err) {
                                                 setCargoError(err instanceof Error ? err.message : 'Failed to import');

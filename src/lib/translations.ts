@@ -17,6 +17,7 @@ export interface DisplayTranslations {
     proceedNow: string;
     waiting: string;
     noTrucks: string;
+    parkingWarning: string;
 }
 
 const translations: Record<Locale, DisplayTranslations> = {
@@ -36,6 +37,7 @@ const translations: Record<Locale, DisplayTranslations> = {
         proceedNow: 'PROCEED NOW!',
         waiting: 'WAITING',
         noTrucks: 'NO TRUCKS IN QUEUE',
+        parkingWarning: 'DO NOT PARK IN FRONT OF THE SCREEN',
     },
     pl: {
         queueStatus: 'Status Kolejki',
@@ -53,6 +55,7 @@ const translations: Record<Locale, DisplayTranslations> = {
         proceedNow: 'JEDŹ TERAZ!',
         waiting: 'OCZEKIWANIE',
         noTrucks: 'BRAK CIĘŻARÓWEK W KOLEJCE',
+        parkingWarning: 'NIE PARKUJ PRZED EKRANEM',
     },
 };
 

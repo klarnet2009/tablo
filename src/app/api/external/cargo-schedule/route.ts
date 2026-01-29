@@ -122,8 +122,14 @@ export async function GET(request: NextRequest) {
             `/api/cargo-orders/schedule/incoming?${params.toString()}`
         );
 
+        // Filter out completed/cancelled cargo (status_id 17 or 20)
+        const IGNORED_STATUS_IDS = [17, 20];
+        const filteredData = (response.data || []).filter(
+            (item: ExternalCargoItem) => !IGNORED_STATUS_IDS.includes(item.data.status_id)
+        );
+
         // Map external cargo data to TruckVisit-compatible format
-        const truckVisits: MappedTruckVisit[] = (response.data || []).map((item: ExternalCargoItem) => {
+        const truckVisits: MappedTruckVisit[] = filteredData.map((item: ExternalCargoItem) => {
             // Use transport provider as carrier, fallback to partner name
             const transportProvider = item.data.transportprovider?.name;
             const partnerName = item.data.order?.partner?.name;

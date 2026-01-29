@@ -47,6 +47,7 @@ function DisplayContent() {
 
     const [currentTime, setCurrentTime] = useState<string>('');
     const [weather, setWeather] = useState<WeatherData | null>(null);
+    const [showParkingWarning, setShowParkingWarning] = useState(false);
 
     useEffect(() => {
         // Update clock every second
@@ -61,8 +62,8 @@ function DisplayContent() {
     useEffect(() => {
         const fetchWeather = async () => {
             try {
-                // Using Open-Meteo free API (no API key needed)
-                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.9496&longitude=24.1052&current_weather=true');
+                // Using Open-Meteo free API (no API key needed) - Olaine, Latvia
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.7847&longitude=23.9378&current_weather=true');
                 const data = await res.json();
                 if (data.current_weather) {
                     setWeather({ temp: Math.round(data.current_weather.temperature) });
@@ -76,6 +77,61 @@ function DisplayContent() {
         const timer = setInterval(fetchWeather, 15 * 60 * 1000);
         return () => clearInterval(timer);
     }, []);
+
+    // Periodic parking warning: show for 20 seconds every 10 minutes, blink first 5 seconds
+    const [warningBlinkPhase, setWarningBlinkPhase] = useState(true);
+    const [warningLocaleIndex, setWarningLocaleIndex] = useState(0);
+    
+    const triggerWarning = () => {
+        setShowParkingWarning(true);
+        setWarningBlinkPhase(true);
+        setWarningLocaleIndex(0);
+        
+        // Stop blinking after 5 seconds
+        setTimeout(() => setWarningBlinkPhase(false), 5000);
+        // Hide after 20 seconds
+        setTimeout(() => setShowParkingWarning(false), 20000);
+    };
+    
+    useEffect(() => {
+        const cycleTime = 600000; // 10 minutes cycle
+
+        // Show immediately on load, then every 10 minutes
+        triggerWarning();
+        const timer = setInterval(triggerWarning, cycleTime);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Poll for manual trigger from queue management
+    useEffect(() => {
+        const pollTrigger = async () => {
+            try {
+                const res = await fetch('/api/display/warning-trigger');
+                const data = await res.json();
+                if (data.trigger && !showParkingWarning) {
+                    triggerWarning();
+                    // Clear the trigger
+                    await fetch('/api/display/warning-trigger', { method: 'DELETE' });
+                }
+            } catch {
+                // Ignore errors
+            }
+        };
+        
+        const timer = setInterval(pollTrigger, 2000); // Poll every 2 seconds
+        return () => clearInterval(timer);
+    }, [showParkingWarning]);
+
+    // Language rotation for warning (every 10 seconds)
+    useEffect(() => {
+        if (!showParkingWarning) return;
+        const timer = setInterval(() => {
+            setWarningLocaleIndex(i => (i + 1) % locales.length);
+        }, 10000);
+        return () => clearInterval(timer);
+    }, [showParkingWarning, locales.length]);
+
+    const warningT = getTranslations(locales[warningLocaleIndex]);
 
     const { data: visits = [] } = useQuery<TruckVisit[]>({
         queryKey: ['visits', 'display'],
@@ -125,6 +181,10 @@ function DisplayContent() {
 
         const prevCalled = previousVisitsRef.current.filter(v => v.status === 'CALLED');
         const currCalled = visits.filter(v => v.status === 'CALLED');
+
+        // Find trucks that LEFT the CALLED status - clear them from shown set so they can be re-notified
+        const leftCalledList = prevCalled.filter(v => !currCalled.some(c => c.id === v.id));
+        leftCalledList.forEach(v => shownFlashIdsRef.current.delete(v.id));
 
         // Find ALL newly CALLED trucks (not just one)
         const newCalledList = currCalled.filter(v =>
@@ -182,17 +242,28 @@ function DisplayContent() {
 
     return (
         <div className="w-[576px] h-[224px] bg-black text-white overflow-hidden p-2 flex flex-col relative">
+            {/* Parking Warning Overlay - Shows for 20 sec every 40 sec, blinks first 5 sec */}
+            {showParkingWarning && !currentFlash && (
+                <div className="absolute inset-x-0 top-0 z-30 bg-black h-12 flex items-center overflow-hidden">
+                    <div className={`bg-red-600 w-full h-full flex items-center overflow-hidden ${warningBlinkPhase ? 'animate-blink-fast' : ''}`}>
+                        <div className="whitespace-nowrap animate-scroll-warning text-white font-black text-xl uppercase tracking-wider">
+                            ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Flash Notification Overlay */}
             {currentFlash && (
                 <>
                     {/* Black background to hide previous content */}
                     <div className="absolute inset-0 z-40 bg-black"></div>
-                    {/* Pulsing green overlay on top */}
-                    <div className="absolute inset-0 z-50 flex items-center justify-center animate-pulse bg-gradient-to-br from-green-600 via-green-500 to-green-700">
+                    {/* Solid green overlay - no animation */}
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-green-600 via-green-500 to-green-700">
                         <div className="flex flex-col items-center gap-1 w-full px-4">
                             {/* MAIN: Plate Number - Large and prominent */}
                             {/* Fallback: truck plate -> trailer plate -> carrier */}
-                            <div className="text-6xl font-mono font-black tracking-wider text-white drop-shadow-2xl animate-bounce">
+                            <div className="text-6xl font-mono font-black tracking-wider text-white drop-shadow-2xl">
                                 {(() => {
                                     const isValid = (val?: string) => val && val.trim() && val.trim() !== '-' && val.trim() !== '—' && val.trim() !== 'N/A';
                                     if (isValid(currentFlash.truckPlate)) return currentFlash.truckPlate;
@@ -207,8 +278,8 @@ function DisplayContent() {
                                 {currentFlash.assignedDock?.dockType === 'SCALES' ? flashT.goToScales : flashT.proceedTo}
                             </div>
 
-                            {/* Dock/Scales indicator - smaller, secondary */}
-                            <div className={`font-black px-8 py-2 rounded-lg shadow-xl flex items-center justify-center ${currentFlash.assignedDock?.dockType === 'SCALES'
+                            {/* Dock/Scales indicator - sharp blinking badge */}
+                            <div className={`font-black px-8 py-2 rounded-lg shadow-xl flex items-center justify-center animate-sharp-blink ${currentFlash.assignedDock?.dockType === 'SCALES'
                                 ? 'bg-yellow-300 text-black'
                                 : 'bg-white text-black'
                                 }`}>
