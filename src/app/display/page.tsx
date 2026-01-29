@@ -62,8 +62,8 @@ function DisplayContent() {
     useEffect(() => {
         const fetchWeather = async () => {
             try {
-                // Using Open-Meteo free API (no API key needed)
-                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.9496&longitude=24.1052&current_weather=true');
+                // Using Open-Meteo free API (no API key needed) - Olaine, Latvia
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.7847&longitude=23.9378&current_weather=true');
                 const data = await res.json();
                 if (data.current_weather) {
                     setWeather({ temp: Math.round(data.current_weather.temperature) });
