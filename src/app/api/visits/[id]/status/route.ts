@@ -98,8 +98,8 @@ export async function PATCH(
                 if (!dock) {
                     return NextResponse.json({ error: 'Dock not found' }, { status: 404 });
                 }
-                if (dock.status === 'BUSY') {
-                    // Check if it's busy with another visit
+                if (dock.status === 'BUSY' && dock.dockType !== 'SCALES') {
+                    // Check if it's busy with another visit (but allow multiple for SCALES)
                     const busyVisit = await prisma.truckVisit.findFirst({
                         where: {
                             assignedDockId: dockId,

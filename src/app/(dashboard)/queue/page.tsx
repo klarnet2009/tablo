@@ -241,7 +241,7 @@ export default function QueuePage() {
                         <div className="text-slate-400 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             <span className="text-cyan-400 font-medium">
-                                {new Date(visit.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false})}
+                                {new Date(visit.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </span>
                         </div>
                     )}
@@ -454,9 +454,9 @@ export default function QueuePage() {
                             {reassignMode ? 'Change Dock' : 'Assign Dock'} for {selectedVisit.truckPlate}
                         </h3>
 
-                        {/* Scales option for INBOUND visits */}
+                        {/* Scales option for INBOUND visits - always available (multiple trucks can weigh) */}
                         {selectedVisit.loadType === 'INBOUND' && !reassignMode && (() => {
-                            const scalesDock = docks.find(d => d.dockType === 'SCALES' && d.status === 'AVAILABLE');
+                            const scalesDock = docks.find(d => d.dockType === 'SCALES');
                             return scalesDock ? (
                                 <div className="mb-4">
                                     <div className="text-xs text-slate-400 uppercase mb-2">Weighing</div>
@@ -550,7 +550,7 @@ export default function QueuePage() {
                                                 <td className="p-3 text-white font-mono">{cargo.truckPlate || '-'}</td>
                                                 <td className="p-3 text-slate-300">{cargo.trailerPlate || '-'}</td>
                                                 <td className="p-3 text-slate-300">
-                                                    {cargo.scheduledAt ? new Date(cargo.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : '-'}
+                                                    {cargo.scheduledAt ? new Date(cargo.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '-'}
                                                 </td>
                                                 <td className="p-3 text-slate-300 font-mono text-xs">{cargo.orderRef || '-'}</td>
                                                 <td className="p-3 text-slate-300">{cargo.partner || '-'}</td>

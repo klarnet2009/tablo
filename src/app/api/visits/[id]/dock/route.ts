@@ -66,8 +66,8 @@ export async function PATCH(
             );
         }
 
-        // Check if new dock is busy with another visit
-        if (newDock.status === 'BUSY') {
+        // Check if new dock is busy with another visit (but allow multiple for SCALES)
+        if (newDock.status === 'BUSY' && newDock.dockType !== 'SCALES') {
             const busyVisit = await prisma.truckVisit.findFirst({
                 where: {
                     assignedDockId: newDockId,
