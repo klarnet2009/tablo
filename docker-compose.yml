@@ -6,9 +6,12 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - DATABASE_URL=file:/app/data/tablo.db
-      - NEXTAUTH_SECRET=your-secret-key-change-in-production
-      - NEXTAUTH_URL=http://localhost:3000
+      - DATABASE_URL=${DATABASE_URL:-file:/app/data/tablo.db}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - EXTERNAL_API_URL=${EXTERNAL_API_URL}
+      - EXTERNAL_API_USERNAME=${EXTERNAL_API_USERNAME}
+      - EXTERNAL_API_PASSWORD=${EXTERNAL_API_PASSWORD}
     volumes:
       - tablo_data:/app/data
     healthcheck:
