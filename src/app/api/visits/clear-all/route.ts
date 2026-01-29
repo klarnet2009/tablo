@@ -27,12 +27,10 @@ export async function DELETE() {
             data: { status: 'AVAILABLE' },
         });
 
-        // Delete all active visits
+        // Delete only PLANNED visits (not in progress or at dock)
         const result = await prisma.truckVisit.deleteMany({
             where: {
-                status: {
-                    notIn: ['LEFT', 'CANCELLED', 'NO_SHOW'],
-                },
+                status: 'PLANNED',
             },
         });
 

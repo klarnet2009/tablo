@@ -62,3 +62,33 @@ body {
 .animate-periodic-blink {
   animation: periodic-blink 20s steps(1) infinite;
 }
+
+/* Fast blinking for warning banner */
+@keyframes blink-fast {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.7; }
+}
+
+.animate-blink-fast {
+  animation: blink-fast 0.3s steps(1) infinite;
+}
+
+/* Scrolling text for warning banner */
+@keyframes scroll-warning {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-scroll-warning {
+  animation: scroll-warning 10s linear infinite;
+}
+
+/* Sharp continuous blink - starts immediately */
+@keyframes sharp-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.animate-sharp-blink {
+  animation: sharp-blink 0.5s steps(1) infinite;
+}
