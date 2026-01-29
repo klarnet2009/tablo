@@ -93,8 +93,9 @@ function DisplayContent() {
         .filter(v => v.status === 'WAITING')
         .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
-    // Flash notification system
+    // Flash notification queue system
     const [currentFlash, setCurrentFlash] = useState<TruckVisit | null>(null);
+    const [flashQueue, setFlashQueue] = useState<TruckVisit[]>([]);
     const previousVisitsRef = useRef<TruckVisit[]>([]);
     const shownFlashIdsRef = useRef<Set<string>>(new Set()); // Track already shown flashes
 
@@ -111,6 +112,7 @@ function DisplayContent() {
     // Use fast-rotating locale for flash, normal for rest
     const flashT = getTranslations(locales[flashLocaleIndex]);
 
+    // Detect new CALLED trucks and add to queue
     useEffect(() => {
         // Skip if no previous data (initial load)
         if (previousVisitsRef.current.length === 0) {
@@ -121,26 +123,39 @@ function DisplayContent() {
         const prevCalled = previousVisitsRef.current.filter(v => v.status === 'CALLED');
         const currCalled = visits.filter(v => v.status === 'CALLED');
 
-        // Find newly CALLED truck:
-        // 1. Exists in current CALLED list
-        // 2. Was NOT in previous CALLED list
-        // 3. Has NOT been shown as flash before
-        const newCalled = currCalled.find(v =>
+        // Find ALL newly CALLED trucks (not just one)
+        const newCalledList = currCalled.filter(v =>
             !prevCalled.some(p => p.id === v.id) &&
             !shownFlashIdsRef.current.has(v.id)
         );
 
-        // Update ref BEFORE showing flash
+        // Update ref
         previousVisitsRef.current = visits;
 
-        if (newCalled) {
-            shownFlashIdsRef.current.add(newCalled.id);
-            setCurrentFlash(newCalled);
-            setFlashLocaleIndex(0); // Reset to first language
-            const timer = setTimeout(() => setCurrentFlash(null), 5000);
-            return () => clearTimeout(timer);
+        // Add new items to queue
+        if (newCalledList.length > 0) {
+            newCalledList.forEach(v => shownFlashIdsRef.current.add(v.id));
+            setFlashQueue(prev => [...prev, ...newCalledList]);
         }
     }, [visits]);
+
+    // Process queue: show next flash when current one ends
+    useEffect(() => {
+        // If nothing is showing and queue has items, show next
+        if (!currentFlash && flashQueue.length > 0) {
+            const [next, ...rest] = flashQueue;
+            setCurrentFlash(next);
+            setFlashLocaleIndex(0);
+            setFlashQueue(rest);
+        }
+    }, [currentFlash, flashQueue]);
+
+    // Timer to clear current flash after 5 seconds
+    useEffect(() => {
+        if (!currentFlash) return;
+        const timer = setTimeout(() => setCurrentFlash(null), 5000);
+        return () => clearTimeout(timer);
+    }, [currentFlash]);
 
     // Pagination for small screen if too many items
     const [page, setPage] = useState(0);
@@ -183,13 +198,13 @@ function DisplayContent() {
                             </div>
 
                             {/* Dock/Scales indicator - smaller, secondary */}
-                            <div className={`text-5xl font-black px-8 py-1 rounded-lg shadow-xl ${currentFlash.assignedDock?.dockType === 'SCALES'
-                                ? 'bg-yellow-400 text-black'
+                            <div className={`font-black px-8 py-2 rounded-lg shadow-xl flex items-center justify-center ${currentFlash.assignedDock?.dockType === 'SCALES'
+                                ? 'bg-yellow-300 text-black'
                                 : 'bg-white text-black'
                                 }`}>
                                 {currentFlash.assignedDock?.dockType === 'SCALES'
-                                    ? '⚖'
-                                    : currentFlash.assignedDock?.dockNumber
+                                    ? <Scale className="w-16 h-16" />
+                                    : <span className="text-5xl">{currentFlash.assignedDock?.dockNumber}</span>
                                 }
                             </div>
 
