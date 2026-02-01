@@ -133,16 +133,47 @@ function DisplayContent() {
 
     const warningT = getTranslations(locales[warningLocaleIndex]);
 
-    const { data: visits = [] } = useQuery<TruckVisit[]>({
+    // Connection health monitoring
+    const [connectionErrors, setConnectionErrors] = useState(0);
+    const [lastSuccessTime, setLastSuccessTime] = useState<Date>(new Date());
+    const MAX_ERRORS_BEFORE_WARNING = 3; // 15 seconds
+    const MAX_ERRORS_BEFORE_RELOAD = 12; // 60 seconds
+
+    const { data: visits = [], isError, isSuccess } = useQuery<TruckVisit[]>({
         queryKey: ['visits', 'display'],
         queryFn: async () => {
-            // Fetch active visits (CALLED, DOCKED) + waiting
             const res = await fetch('/api/display');
+            if (!res.ok) throw new Error('API error');
             const data = await res.json();
             return data;
         },
         refetchInterval: 5000, // Fast refresh for display
+        retry: 1, // Quick retry on failure
     });
+
+    // Track connection health
+    useEffect(() => {
+        if (isSuccess) {
+            setConnectionErrors(0);
+            setLastSuccessTime(new Date());
+        }
+    }, [isSuccess, visits]);
+
+    useEffect(() => {
+        if (isError) {
+            setConnectionErrors(prev => prev + 1);
+        }
+    }, [isError]);
+
+    // Auto-reload after prolonged connection loss
+    useEffect(() => {
+        if (connectionErrors >= MAX_ERRORS_BEFORE_RELOAD) {
+            console.log('Connection lost for too long, reloading page...');
+            window.location.reload();
+        }
+    }, [connectionErrors]);
+
+    const isConnectionLost = connectionErrors >= MAX_ERRORS_BEFORE_WARNING;
 
     // Filter for display:
     // 1. CALLED/DOCKED/IN_SERVICE (Active dock assignments) - Top priority
@@ -250,6 +281,21 @@ function DisplayContent() {
                             ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Connection Lost Warning */}
+            {isConnectionLost && !currentFlash && (
+                <div className="absolute inset-x-0 bottom-0 z-40 bg-red-900/95 py-2 px-4 flex items-center justify-between animate-pulse">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-ping" />
+                        <span className="text-red-100 font-bold text-sm uppercase tracking-wider">
+                            ⚠ Connection Lost — Reconnecting...
+                        </span>
+                    </div>
+                    <span className="text-red-300 text-xs">
+                        Auto-reload in {Math.max(0, (MAX_ERRORS_BEFORE_RELOAD - connectionErrors) * 5)}s
+                    </span>
                 </div>
             )}
 
