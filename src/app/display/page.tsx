@@ -81,18 +81,18 @@ function DisplayContent() {
     // Periodic parking warning: show for 20 seconds every 10 minutes, blink first 5 seconds
     const [warningBlinkPhase, setWarningBlinkPhase] = useState(true);
     const [warningLocaleIndex, setWarningLocaleIndex] = useState(0);
-    
+
     const triggerWarning = () => {
         setShowParkingWarning(true);
         setWarningBlinkPhase(true);
         setWarningLocaleIndex(0);
-        
+
         // Stop blinking after 5 seconds
         setTimeout(() => setWarningBlinkPhase(false), 5000);
         // Hide after 20 seconds
         setTimeout(() => setShowParkingWarning(false), 20000);
     };
-    
+
     useEffect(() => {
         const cycleTime = 600000; // 10 minutes cycle
 
@@ -117,7 +117,7 @@ function DisplayContent() {
                 // Ignore errors
             }
         };
-        
+
         const timer = setInterval(pollTrigger, 2000); // Poll every 2 seconds
         return () => clearInterval(timer);
     }, [showParkingWarning]);
@@ -137,7 +137,7 @@ function DisplayContent() {
         queryKey: ['visits', 'display'],
         queryFn: async () => {
             // Fetch active visits (CALLED, DOCKED) + waiting
-            const res = await fetch('/api/visits?active=true');
+            const res = await fetch('/api/display');
             const data = await res.json();
             return data;
         },
@@ -350,17 +350,17 @@ function DisplayContent() {
                                 {(() => {
                                     // Helper to check if value is valid (not empty, -, or whitespace)
                                     const isValid = (val?: string) => val && val.trim() && val.trim() !== '-' && val.trim() !== '—' && val.trim() !== 'N/A';
-                                    
+
                                     const parts = [
                                         isValid(visit.truckPlate) ? visit.truckPlate : null,
                                         isValid(visit.trailerPlate) ? visit.trailerPlate : null,
                                         isValid(visit.carrier) ? visit.carrier : null,
                                     ].filter(Boolean);
-                                    
+
                                     // If no truck plate, just show carrier or "UNKNOWN"
                                     const text = parts.length > 0 ? parts.join(' | ') : 'UNKNOWN';
                                     const needsScroll = text.length > (isActive ? 12 : 16);
-                                    
+
                                     return needsScroll ? (
                                         <div key={`marquee-${visit.id}`} className="marquee-container">
                                             <span className="marquee-text" style={{ animationDelay: `${idx * 0.5}s` }}>

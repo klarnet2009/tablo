@@ -185,6 +185,36 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Display Board Preview */}
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700/50">
+                <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-white">Public Display Board</h2>
+                    <div className="flex items-center gap-3">
+                        <a
+                            href="/display"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1"
+                        >
+                            Open Full Screen ↗
+                        </a>
+                    </div>
+                </div>
+                <div className="p-4">
+                    <div className="relative w-full aspect-[16/9] bg-slate-900 rounded-lg overflow-hidden border border-slate-600">
+                        <iframe
+                            src="/display"
+                            className="w-full h-full pointer-events-none"
+                            title="Display Board Preview"
+                        />
+                        <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={() => window.open('/display', '_blank')} />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2 text-center">
+                        Click preview or &quot;Open Full Screen&quot; to view on external monitor • No login required
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }
