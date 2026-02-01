@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-    { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/queue', label: 'Queue', icon: List },
     { href: '/register', label: 'Register', icon: PlusCircle },
     { href: '/docks', label: 'Docks', icon: Square },
@@ -53,8 +53,8 @@ export function Sidebar() {
                             key={item.href}
                             href={item.href}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition ${isActive
-                                    ? 'bg-blue-500/20 text-blue-400'
-                                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                                ? 'bg-blue-500/20 text-blue-400'
+                                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                                 }`}
                         >
                             <item.icon className="w-5 h-5" />
@@ -73,8 +73,8 @@ export function Sidebar() {
                                 key={item.href}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition ${isActive
-                                        ? 'bg-blue-500/20 text-blue-400'
-                                        : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                                    ? 'bg-blue-500/20 text-blue-400'
+                                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                                     }`}
                             >
                                 <item.icon className="w-5 h-5" />
