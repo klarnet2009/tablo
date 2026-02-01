@@ -350,7 +350,7 @@ function DisplayContent() {
                     <div className="px-2 py-1.5 rounded" style={{ backgroundColor: '#7CBD6E' }}>
                         <Image src="/logo.png" alt="Company Logo" width={100} height={40} className="h-6 w-auto" unoptimized />
                     </div>
-                    <div className="text-sm text-slate-400 uppercase tracking-wider">{t.queueStatus}</div>
+                    <div className="text-base md:text-lg text-slate-400 uppercase tracking-wider">{t.queueStatus}</div>
                 </div>
                 <div className="flex items-center gap-3">
                     {weather && (
@@ -476,7 +476,7 @@ function DisplayContent() {
                 })}
 
                 {displayList.length === 0 && (
-                    <div className="flex-1 flex items-center justify-center text-slate-500 text-lg">
+                    <div className="flex-1 flex items-center justify-center text-slate-400 text-2xl md:text-4xl font-semibold">
                         {t.noTrucks}
                     </div>
                 )}
