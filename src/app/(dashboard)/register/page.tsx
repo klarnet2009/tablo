@@ -99,16 +99,16 @@ export default function RegisterPage() {
     }
 
     return (
-        <div className="p-6">
+        <div className="p-4 md:p-6">
             <div className="max-w-2xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-6">
-                    <Link href="/" className="p-2 hover:bg-slate-700 rounded-lg transition">
+                    <Link href="/queue" className="p-2 hover:bg-slate-700 rounded-lg transition touch-target flex items-center justify-center">
                         <ArrowLeft className="w-5 h-5 text-slate-400" />
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Register Truck</h1>
-                        <p className="text-slate-400">Add a new truck to the queue</p>
+                        <h1 className="text-xl md:text-2xl font-bold text-white">Register Truck</h1>
+                        <p className="text-slate-400 text-sm md:text-base">Add a new truck to the queue</p>
                     </div>
                 </div>
 

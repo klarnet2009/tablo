@@ -62,11 +62,11 @@ export default function DocksPage() {
     };
 
     return (
-        <div className="p-6">
+        <div className="p-4 md:p-6">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Dock Management</h1>
-                    <p className="text-slate-400">View and manage loading docks</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-white">Dock Management</h1>
+                    <p className="text-slate-400 text-sm md:text-base">View and manage loading docks</p>
                 </div>
             </div>
 

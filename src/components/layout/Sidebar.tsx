@@ -30,7 +30,7 @@ export function Sidebar() {
     const { data: session } = useSession();
 
     return (
-        <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
+        <aside className="hidden md:flex w-64 bg-slate-800 border-r border-slate-700 flex-col">
             {/* Logo */}
             <div className="p-4 border-b border-slate-700">
                 <Link href="/" className="flex items-center gap-3">

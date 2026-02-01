@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { MobileNav } from '@/components/layout/MobileNav';
 
 export default function DashboardLayout({
     children,
@@ -26,9 +27,10 @@ export default function DashboardLayout({
     return (
         <div className="flex min-h-screen bg-slate-900">
             <Sidebar />
-            <main className="flex-1 overflow-auto">
+            <main className="flex-1 overflow-auto pb-20 md:pb-0">
                 {children}
             </main>
+            <MobileNav />
         </div>
     );
 }

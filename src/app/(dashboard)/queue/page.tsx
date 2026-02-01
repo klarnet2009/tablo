@@ -318,68 +318,70 @@ export default function QueuePage() {
     const availableDocks = docks.filter(d => d.status === 'AVAILABLE');
 
     return (
-        <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
+        <div className="p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Queue Management</h1>
-                    <p className="text-slate-400">Manage truck queue and dock assignments</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-white">Queue Management</h1>
+                    <p className="text-slate-400 text-sm md:text-base">Manage truck queue and dock assignments</p>
                 </div>
-                <button
-                    onClick={async () => {
-                        setCargoLoading(true);
-                        setCargoError(null);
-                        setShowCargoModal(true);
-                        try {
-                            const res = await fetch('/api/external/cargo-schedule');
-                            const data = await res.json();
-                            if (data.error) {
-                                setCargoError(data.error);
-                            } else {
-                                setCargoData(data.data || []);
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={async () => {
+                            setCargoLoading(true);
+                            setCargoError(null);
+                            setShowCargoModal(true);
+                            try {
+                                const res = await fetch('/api/external/cargo-schedule');
+                                const data = await res.json();
+                                if (data.error) {
+                                    setCargoError(data.error);
+                                } else {
+                                    setCargoData(data.data || []);
+                                }
+                            } catch (err) {
+                                setCargoError(err instanceof Error ? err.message : 'Failed to fetch cargo');
+                            } finally {
+                                setCargoLoading(false);
                             }
-                        } catch (err) {
-                            setCargoError(err instanceof Error ? err.message : 'Failed to fetch cargo');
-                        } finally {
-                            setCargoLoading(false);
-                        }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium"
-                >
-                    <Calendar className="w-4 h-4" />
-                    Sync Cargo Schedule
-                </button>
-                <button
-                    onClick={async () => {
-                        if (!confirm('Are you sure you want to clear ALL trucks from the queue? This cannot be undone.')) return;
-                        try {
-                            const res = await fetch('/api/visits/clear-all', { method: 'DELETE' });
-                            if (res.ok) {
-                                queryClient.invalidateQueries({ queryKey: ['visits'] });
-                            } else {
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium text-sm touch-target"
+                    >
+                        <Calendar className="w-4 h-4" />
+                        <span className="hidden sm:inline">Sync Cargo</span>
+                    </button>
+                    <button
+                        onClick={async () => {
+                            if (!confirm('Are you sure you want to clear ALL trucks from the queue? This cannot be undone.')) return;
+                            try {
+                                const res = await fetch('/api/visits/clear-all', { method: 'DELETE' });
+                                if (res.ok) {
+                                    queryClient.invalidateQueries({ queryKey: ['visits'] });
+                                } else {
+                                    alert('Failed to clear queue');
+                                }
+                            } catch (err) {
                                 alert('Failed to clear queue');
                             }
-                        } catch (err) {
-                            alert('Failed to clear queue');
-                        }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium"
-                >
-                    <Trash2 className="w-4 h-4" />
-                    Clear All
-                </button>
-                <button
-                    onClick={async () => {
-                        try {
-                            await fetch('/api/display/warning-trigger', { method: 'POST' });
-                        } catch {
-                            // Ignore errors
-                        }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition font-medium"
-                    title="Show parking warning on display"
-                >
-                    ⚠️ Parking Warning
-                </button>
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-sm touch-target"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="hidden sm:inline">Clear All</span>
+                    </button>
+                    <button
+                        onClick={async () => {
+                            try {
+                                await fetch('/api/display/warning-trigger', { method: 'POST' });
+                            } catch {
+                                // Ignore errors
+                            }
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition font-medium text-sm touch-target"
+                        title="Show parking warning on display"
+                    >
+                        ⚠️ <span className="hidden sm:inline">Warning</span>
+                    </button>
+                </div>
             </div>
 
             {isLoading ? (
@@ -387,9 +389,9 @@ export default function QueuePage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 </div>
             ) : (
-                <div className="flex gap-4 overflow-x-auto pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                     {/* Planned Column */}
-                    <div className="flex-1 min-w-[16rem]">
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-4">
                             <Calendar className="w-5 h-5 text-cyan-400" />
                             <h2 className="text-lg font-semibold text-white">Planned ({planned.length})</h2>
@@ -403,7 +405,7 @@ export default function QueuePage() {
                     </div>
 
                     {/* Arrived Column */}
-                    <div className="flex-1 min-w-[16rem]">
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-4">
                             <Truck className="w-5 h-5 text-blue-400" />
                             <h2 className="text-lg font-semibold text-white">Arrived ({arrived.length})</h2>
@@ -417,7 +419,7 @@ export default function QueuePage() {
                     </div>
 
                     {/* Waiting Column */}
-                    <div className="flex-1 min-w-[16rem]">
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-4">
                             <Clock className="w-5 h-5 text-yellow-400" />
                             <h2 className="text-lg font-semibold text-white">Waiting ({waiting.length})</h2>
@@ -431,7 +433,7 @@ export default function QueuePage() {
                     </div>
 
                     {/* In Progress Column */}
-                    <div className="flex-1 min-w-[16rem]">
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-4">
                             <Truck className="w-5 h-5 text-blue-400" />
                             <h2 className="text-lg font-semibold text-white">In Progress ({called.length + docked.length + inService.length})</h2>
@@ -445,7 +447,7 @@ export default function QueuePage() {
                     </div>
 
                     {/* On Hold Column */}
-                    <div className="flex-1 min-w-[16rem]">
+                    <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-4">
                             <Pause className="w-5 h-5 text-amber-400" />
                             <h2 className="text-lg font-semibold text-white">On Hold ({onHold.length})</h2>
@@ -462,8 +464,8 @@ export default function QueuePage() {
 
             {/* Dock Assignment Modal */}
             {showDockModal && selectedVisit && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 w-full max-w-md">
+                <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50">
+                    <div className="bg-slate-800 rounded-t-2xl md:rounded-xl border border-slate-700 p-4 md:p-6 w-full md:max-w-md max-h-[90vh] overflow-y-auto animate-slide-up md:animate-none safe-bottom">
                         <h3 className="text-lg font-semibold text-white mb-4">
                             {reassignMode ? 'Change Dock' : 'Assign Dock'} for {selectedVisit.truckPlate}
                         </h3>
@@ -520,8 +522,8 @@ export default function QueuePage() {
 
             {/* Cargo Schedule Modal */}
             {showCargoModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-slate-800 rounded-xl border border-slate-700 p-6 w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+                <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50">
+                    <div className="bg-slate-800 rounded-t-2xl md:rounded-xl border border-slate-700 p-4 md:p-6 w-full md:max-w-4xl max-h-[90vh] md:max-h-[80vh] overflow-hidden flex flex-col animate-slide-up md:animate-none safe-bottom">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-white">Cargo Schedule</h3>
                             <button
@@ -635,8 +637,8 @@ export default function QueuePage() {
 
             {/* Edit Visit Modal */}
             {showEditModal && editingVisit && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
+                <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50">
+                    <div className="bg-slate-800 rounded-t-2xl md:rounded-xl shadow-2xl w-full md:max-w-lg max-h-[90vh] overflow-auto animate-slide-up md:animate-none safe-bottom">
                         <div className="flex items-center justify-between p-4 border-b border-slate-700">
                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
                                 <Pencil className="w-5 h-5" />
