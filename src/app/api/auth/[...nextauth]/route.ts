@@ -37,8 +37,8 @@ declare module 'next-auth/jwt' {
 
 /**
  * Attempt LDAP authentication
- * Returns user if successful, null if LDAP disabled or fallback allowed
- * Throws error if authentication failed and no fallback
+ * Returns user if successful, 'fallback' to try local auth
+ * Note: We always allow local fallback for safety
  */
 async function tryLdapAuth(username: string, password: string): Promise<User | null | 'fallback'> {
     try {
@@ -61,7 +61,7 @@ async function tryLdapAuth(username: string, password: string): Promise<User | n
         const result = await authenticateUser(ldapConfig, username, password);
 
         if (!result.success) {
-            // Check if account is disabled
+            // Check if account is disabled in AD - this should block login
             if (result.disabled) {
                 const message = result.disabledReason === 'account_expired'
                     ? 'Account has expired. Please contact your administrator.'
@@ -71,26 +71,15 @@ async function tryLdapAuth(username: string, password: string): Promise<User | n
                 throw new Error(message);
             }
 
-            // Check if denied by group list
+            // Check if denied by group list - this should block login
             if (result.deniedByGroupList) {
                 throw new Error('Access denied. You are not authorized to use this application.');
             }
 
-            // Authentication failed
-            if (result.errorCode === 'INVALID_CREDENTIALS') {
-                // Allow fallback to local auth if configured
-                if (!ldapConfig.disableLocalFallback) {
-                    return 'fallback';
-                }
-                throw new Error('Invalid username or password');
-            }
-
-            // Other errors - log and fallback if allowed
-            console.error('[Auth] LDAP auth error:', result.error, result.errorCode);
-            if (!ldapConfig.disableLocalFallback) {
-                return 'fallback';
-            }
-            throw new Error(result.error || 'Authentication failed');
+            // For all other failures (invalid credentials, connection errors, etc.)
+            // Always allow fallback to local auth
+            console.log('[Auth] LDAP auth failed, trying local auth. Reason:', result.errorCode || result.error);
+            return 'fallback';
         }
 
         // LDAP authentication successful
