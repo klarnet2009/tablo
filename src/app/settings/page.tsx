@@ -2,9 +2,10 @@
 
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileNav } from '@/components/layout/MobileNav';
-import { Settings, Users, Database, Bell } from 'lucide-react';
+import { Settings, Users, Database, Bell, Shield, ChevronRight } from 'lucide-react';
 
 export default function SettingsPage() {
     const { data: session, status } = useSession();
@@ -26,6 +27,8 @@ export default function SettingsPage() {
         redirect('/queue');
     }
 
+    const isAdmin = session.user.role === 'ADMIN';
+
     return (
         <div className="flex min-h-screen bg-slate-900">
             <Sidebar />
@@ -37,7 +40,29 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Coming Soon Cards */}
+                        {/* Authentication - Admin Only */}
+                        {isAdmin && (
+                            <Link
+                                href="/settings/authentication"
+                                className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4 md:p-6 
+                                    hover:bg-slate-800/70 hover:border-slate-600/50 transition group"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Shield className="w-8 h-8 text-cyan-400" />
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-white group-hover:text-cyan-400 transition">
+                                                Authentication
+                                            </h3>
+                                            <p className="text-sm text-slate-400">LDAP / Active Directory</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 transition" />
+                                </div>
+                            </Link>
+                        )}
+
+                        {/* User Management Card */}
                         <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4 md:p-6">
                             <div className="flex items-center gap-3 mb-4">
                                 <Users className="w-8 h-8 text-blue-400" />

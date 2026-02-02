@@ -21,11 +21,61 @@ model User {
   role         String   @default("SECURITY")
   isActive     Boolean  @default(true)
   
+  // LDAP fields
+  ldapDn       String?  // Distinguished Name if user originated from LDAP
+  ldapSyncedAt DateTime? // Last LDAP sync timestamp
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   createdVisits TruckVisit[]
   auditLogs     AuditLog[]
+}
+
+// LDAP Configuration (singleton pattern)
+model LdapConfig {
+  id                String   @id @default("singleton")
+  enabled           Boolean  @default(false)
+  
+  // Connection settings
+  host              String   @default("")
+  port              Int      @default(389)
+  connectionMode    String   @default("LDAP") // LDAP, LDAPS, STARTTLS
+  
+  // TLS settings
+  tlsRejectUnauthorized Boolean @default(true)
+  tlsCaCert         String?  // PEM certificate content
+  
+  // Bind credentials
+  baseDn            String   @default("")
+  bindDn            String   @default("")
+  bindPasswordEnc   String   @default("") // Encrypted at rest
+  
+  // User search configuration
+  userSearchFilter  String   @default("(sAMAccountName={{username}})")
+  userAttributes    String   @default("cn,mail,memberOf,userAccountControl,accountExpires")
+  
+  // OU selection (JSON array of DN strings)
+  selectedOUs       String   @default("[]")
+  
+  // Group authorization
+  groupAuthEnabled  Boolean  @default(false)
+  groupAuthMode     String   @default("highest_role_wins") // highest_role_wins, merge_permissions
+  groupAuthDefaultRole String @default("SECURITY")
+  groupMappingRules String   @default("[]") // JSON array of { groupDn, role, priority }
+  groupAllowList    String   @default("[]") // JSON array of group DNs (if set, user must be in one)
+  groupDenyList     String   @default("[]") // JSON array of group DNs (if user is in one, deny access)
+  
+  // Timeouts
+  connectTimeout    Int      @default(5000)
+  searchTimeout     Int      @default(10000)
+  
+  // Disable local fallback option
+  disableLocalFallback Boolean @default(false)
+  
+  // Audit
+  updatedAt         DateTime @updatedAt
+  updatedById       String?
 }
 
 model Dock {
