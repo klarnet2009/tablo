@@ -295,6 +295,17 @@ export async function testConnection(
 
         // Try to bind with service account
         const bindPassword = decrypt(config.bindPasswordEnc);
+
+        // Check if decryption failed (returns empty string on error)
+        if (!bindPassword && config.bindPasswordEnc) {
+            console.error('[LDAP] Failed to decrypt bind password - encryption key may have changed');
+            return {
+                success: false,
+                message: 'Failed to decrypt service account password. The encryption key may have changed. Please re-enter the password in LDAP settings.',
+            };
+        }
+
+        console.log('[LDAP] Attempting bind to:', config.host, 'as:', config.bindDn);
         await client.bind(config.bindDn, bindPassword);
 
         // Try to read RootDSE for server info
@@ -551,6 +562,18 @@ export async function searchUser(
         }
 
         const bindPassword = decrypt(config.bindPasswordEnc);
+
+        // Check if decryption failed
+        if (!bindPassword && config.bindPasswordEnc) {
+            console.error('[LDAP searchUser] Failed to decrypt bind password');
+            return {
+                success: false,
+                error: 'Failed to decrypt service account password. Please re-enter it in LDAP settings.',
+                errorCode: 'UNKNOWN_ERROR',
+            };
+        }
+
+        console.log('[LDAP searchUser] Binding as:', config.bindDn);
         await client.bind(config.bindDn, bindPassword);
 
         // Build filter with username substitution
