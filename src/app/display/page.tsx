@@ -142,7 +142,9 @@ function DisplayContent() {
     const { data: visits = [], isError, isSuccess } = useQuery<TruckVisit[]>({
         queryKey: ['visits', 'display'],
         queryFn: async () => {
-            const res = await fetch('/api/display');
+            const res = await fetch('/api/display', {
+                signal: AbortSignal.timeout(4000)
+            });
             if (!res.ok) throw new Error('API error');
             const data = await res.json();
             return data;
@@ -172,6 +174,23 @@ function DisplayContent() {
             window.location.reload();
         }
     }, [connectionErrors]);
+
+    // Independent Watchdog: Force reload only if the polling system itself 
+    // has completely crashed (no success AND no network errors for 2+ minutes).
+    // A working empty queue will constantly update lastSuccessTime.
+    useEffect(() => {
+        const watchdog = setInterval(() => {
+            const timeSinceLastSuccess = new Date().getTime() - lastSuccessTime.getTime();
+            // If the time since the last success is over 2 minutes, AND we haven't registered
+            // connection errors (which would trigger the other reload), it means the JS event
+            // loop is stuck, the browser tab is suspended, or useQuery stopped polling.
+            if (timeSinceLastSuccess > 120000 && connectionErrors === 0) {
+                console.log('Watchdog triggered: Event loop stalled or polling stopped. Reloading...');
+                window.location.reload();
+            }
+        }, 10000);
+        return () => clearInterval(watchdog);
+    }, [lastSuccessTime, connectionErrors]);
 
     const isConnectionLost = connectionErrors >= MAX_ERRORS_BEFORE_WARNING;
 
