@@ -155,7 +155,7 @@ function DisplayContent() {
     const softRecoveryAtRef = useRef<number>(0);
     const fetchStartRef = useRef<number>(0);
 
-    const { data: visits = [], isError, isSuccess, isFetching, refetch } = useQuery<TruckVisit[]>({
+    const { data: visits = [], isError, isFetching, refetch, dataUpdatedAt } = useQuery<TruckVisit[]>({
         queryKey: ['visits', 'display'],
         queryFn: async ({ signal }) => {
             abortRef.current?.abort(); // abort any previous in-flight request
@@ -185,14 +185,15 @@ function DisplayContent() {
         }
     }, [isFetching]);
 
-    // Track connection health
+    // Track connection health — dataUpdatedAt ticks on every successful fetch,
+    // even when response is structurally equal to previous (visits ref unchanged).
     useEffect(() => {
-        if (isSuccess) {
+        if (dataUpdatedAt > 0) {
             setConnectionErrors(0);
-            setLastSuccessTime(new Date());
-            softRecoveryAtRef.current = 0; // fresh success clears the soft-recovery flag
+            setLastSuccessTime(new Date(dataUpdatedAt));
+            softRecoveryAtRef.current = 0;
         }
-    }, [isSuccess, visits]);
+    }, [dataUpdatedAt]);
 
     useEffect(() => {
         if (isError) {
