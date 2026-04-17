@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Thermometer, Scale } from 'lucide-react';
@@ -63,7 +63,9 @@ function DisplayContent() {
         const fetchWeather = async () => {
             try {
                 // Using Open-Meteo free API (no API key needed) - Olaine, Latvia
-                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.7847&longitude=23.9378&current_weather=true');
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.7847&longitude=23.9378&current_weather=true', {
+                    signal: AbortSignal.timeout(8000),
+                });
                 const data = await res.json();
                 if (data.current_weather) {
                     setWeather({ temp: Math.round(data.current_weather.temperature) });
@@ -106,12 +108,17 @@ function DisplayContent() {
     useEffect(() => {
         const pollTrigger = async () => {
             try {
-                const res = await fetch('/api/display/warning-trigger');
+                const res = await fetch('/api/display/warning-trigger', {
+                    signal: AbortSignal.timeout(3000),
+                });
                 const data = await res.json();
                 if (data.trigger && !showParkingWarning) {
                     triggerWarning();
                     // Clear the trigger
-                    await fetch('/api/display/warning-trigger', { method: 'DELETE' });
+                    await fetch('/api/display/warning-trigger', {
+                        method: 'DELETE',
+                        signal: AbortSignal.timeout(3000),
+                    });
                 }
             } catch {
                 // Ignore errors
@@ -136,28 +143,54 @@ function DisplayContent() {
     // Connection health monitoring
     const [connectionErrors, setConnectionErrors] = useState(0);
     const [lastSuccessTime, setLastSuccessTime] = useState<Date>(new Date());
+    const [, setNowTick] = useState(0); // drives "last update Xs ago" indicator
     const MAX_ERRORS_BEFORE_WARNING = 3; // 15 seconds
     const MAX_ERRORS_BEFORE_RELOAD = 12; // 60 seconds
+    const SOFT_RECOVERY_AFTER_MS = 45000;
+    const HARD_RELOAD_AFTER_MS = 90000;
+    const INFLIGHT_HANG_MS = 10000;
 
-    const { data: visits = [], isError, isSuccess } = useQuery<TruckVisit[]>({
+    const queryClient = useQueryClient();
+    const abortRef = useRef<AbortController | null>(null);
+    const softRecoveryAtRef = useRef<number>(0);
+    const fetchStartRef = useRef<number>(0);
+
+    const { data: visits = [], isError, isSuccess, isFetching, refetch } = useQuery<TruckVisit[]>({
         queryKey: ['visits', 'display'],
-        queryFn: async () => {
-            const res = await fetch('/api/display', {
-                signal: AbortSignal.timeout(4000)
-            });
-            if (!res.ok) throw new Error('API error');
-            const data = await res.json();
-            return data;
+        queryFn: async ({ signal }) => {
+            abortRef.current?.abort(); // abort any previous in-flight request
+            const ctrl = new AbortController();
+            abortRef.current = ctrl;
+            signal.addEventListener('abort', () => ctrl.abort(), { once: true });
+            const timeoutId = setTimeout(() => ctrl.abort(), 4000);
+            try {
+                const res = await fetch('/api/display', { signal: ctrl.signal });
+                if (!res.ok) throw new Error('API error');
+                return await res.json();
+            } finally {
+                clearTimeout(timeoutId);
+            }
         },
         refetchInterval: 5000, // Fast refresh for display
+        refetchIntervalInBackground: true, // keep polling on suspended/hidden tabs
         retry: 1, // Quick retry on failure
     });
+
+    // Track in-flight fetch start time so the watchdog can detect a hung request
+    useEffect(() => {
+        if (isFetching) {
+            fetchStartRef.current = Date.now();
+        } else {
+            fetchStartRef.current = 0;
+        }
+    }, [isFetching]);
 
     // Track connection health
     useEffect(() => {
         if (isSuccess) {
             setConnectionErrors(0);
             setLastSuccessTime(new Date());
+            softRecoveryAtRef.current = 0; // fresh success clears the soft-recovery flag
         }
     }, [isSuccess, visits]);
 
@@ -167,7 +200,7 @@ function DisplayContent() {
         }
     }, [isError]);
 
-    // Auto-reload after prolonged connection loss
+    // Auto-reload after prolonged connection loss (explicit network errors)
     useEffect(() => {
         if (connectionErrors >= MAX_ERRORS_BEFORE_RELOAD) {
             console.log('Connection lost for too long, reloading page...');
@@ -175,24 +208,70 @@ function DisplayContent() {
         }
     }, [connectionErrors]);
 
-    // Independent Watchdog: Force reload only if the polling system itself 
-    // has completely crashed (no success AND no network errors for 2+ minutes).
-    // A working empty queue will constantly update lastSuccessTime.
+    // Kick polling immediately when tab regains visibility or network comes back
+    useEffect(() => {
+        const wake = (reason: string) => {
+            console.log(`Wake trigger: ${reason}. Forcing refetch.`);
+            abortRef.current?.abort();
+            queryClient.invalidateQueries({ queryKey: ['visits', 'display'] });
+            refetch();
+        };
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') wake('visibilitychange');
+        };
+        const onOnline = () => wake('online');
+        document.addEventListener('visibilitychange', onVisibility);
+        window.addEventListener('online', onOnline);
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibility);
+            window.removeEventListener('online', onOnline);
+        };
+    }, [queryClient, refetch]);
+
+    // Two-stage watchdog:
+    //   Stage 1 (45s silence OR 10s in-flight hang) — abort + resetQueries + refetch (soft recovery)
+    //   Stage 2 (90s silence AND soft recovery was already attempted) — window.location.reload()
     useEffect(() => {
         const watchdog = setInterval(() => {
-            const timeSinceLastSuccess = new Date().getTime() - lastSuccessTime.getTime();
-            // If the time since the last success is over 2 minutes, AND we haven't registered
-            // connection errors (which would trigger the other reload), it means the JS event
-            // loop is stuck, the browser tab is suspended, or useQuery stopped polling.
-            if (timeSinceLastSuccess > 120000 && connectionErrors === 0) {
-                console.log('Watchdog triggered: Event loop stalled or polling stopped. Reloading...');
+            const now = Date.now();
+            const timeSinceLastSuccess = now - lastSuccessTime.getTime();
+            const inflightFor = fetchStartRef.current > 0 ? now - fetchStartRef.current : 0;
+
+            // Hard reload — only after soft recovery was already tried
+            if (
+                timeSinceLastSuccess > HARD_RELOAD_AFTER_MS &&
+                softRecoveryAtRef.current > 0 &&
+                now - softRecoveryAtRef.current > 30000
+            ) {
+                console.log('Watchdog: soft recovery did not restore polling, reloading page...');
                 window.location.reload();
+                return;
             }
-        }, 10000);
+
+            // Soft recovery — first response on stalled polling or hung in-flight fetch
+            const needSoftRecovery =
+                (timeSinceLastSuccess > SOFT_RECOVERY_AFTER_MS || inflightFor > INFLIGHT_HANG_MS) &&
+                (softRecoveryAtRef.current === 0 || now - softRecoveryAtRef.current > 30000);
+
+            if (needSoftRecovery) {
+                console.log('Watchdog: attempting soft recovery (abort + reset + refetch).');
+                softRecoveryAtRef.current = now;
+                abortRef.current?.abort();
+                queryClient.resetQueries({ queryKey: ['visits', 'display'] });
+                refetch();
+            }
+        }, 5000);
         return () => clearInterval(watchdog);
-    }, [lastSuccessTime, connectionErrors]);
+    }, [lastSuccessTime, queryClient, refetch]);
+
+    // 1s tick to refresh the "last update Xs ago" indicator
+    useEffect(() => {
+        const t = setInterval(() => setNowTick(n => (n + 1) & 0xffff), 1000);
+        return () => clearInterval(t);
+    }, []);
 
     const isConnectionLost = connectionErrors >= MAX_ERRORS_BEFORE_WARNING;
+    const secondsSinceLastSuccess = Math.floor((Date.now() - lastSuccessTime.getTime()) / 1000);
 
     // Filter for display:
     // 1. CALLED/DOCKED/IN_SERVICE (Active dock assignments) - Top priority
@@ -502,13 +581,21 @@ function DisplayContent() {
             </div>
 
             {/* Footer / Paginator dots */}
-            <div className="absolute bottom-1 right-2 flex gap-1">
-                {Array.from({ length: Math.ceil((activeVisits.length + waitingVisits.length) / itemsPerPage) }).map((_, i) => (
-                    <div
-                        key={i}
-                        className={`w-1.5 h-1.5 rounded-full ${i === page ? 'bg-blue-500' : 'bg-slate-700'}`}
-                    />
-                ))}
+            <div className="absolute bottom-1 right-2 flex items-center gap-2">
+                <span
+                    className={`text-[10px] font-mono ${secondsSinceLastSuccess > 15 ? 'text-red-400' : 'text-slate-600'}`}
+                    title="Time since last successful update"
+                >
+                    {secondsSinceLastSuccess}s
+                </span>
+                <div className="flex gap-1">
+                    {Array.from({ length: Math.ceil((activeVisits.length + waitingVisits.length) / itemsPerPage) }).map((_, i) => (
+                        <div
+                            key={i}
+                            className={`w-1.5 h-1.5 rounded-full ${i === page ? 'bg-blue-500' : 'bg-slate-700'}`}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );
