@@ -1,6 +1,5 @@
 'use client';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Thermometer, Scale } from 'lucide-react';
@@ -140,139 +139,104 @@ function DisplayContent() {
 
     const warningT = getTranslations(locales[warningLocaleIndex]);
 
-    // Connection health monitoring
-    const [connectionErrors, setConnectionErrors] = useState(0);
+    // Real-time feed via Server-Sent Events.
+    //   - EventSource auto-reconnects on transport errors.
+    //   - Server sends a heartbeat comment every 15s so proxies keep the TCP open.
+    //   - A visits event carries the full active queue snapshot.
+    //   - The watchdog below is a last-resort: if we go >90s without any payload
+    //     it forces a full page reload.
+    const [visits, setVisits] = useState<TruckVisit[]>([]);
+    const [sseOpen, setSseOpen] = useState(false);
     const [lastSuccessTime, setLastSuccessTime] = useState<Date>(new Date());
-    const [, setNowTick] = useState(0); // drives "last update Xs ago" indicator
-    const MAX_ERRORS_BEFORE_WARNING = 3; // 15 seconds
-    const MAX_ERRORS_BEFORE_RELOAD = 12; // 60 seconds
-    const SOFT_RECOVERY_AFTER_MS = 45000;
+    const [, setNowTick] = useState(0);
+
     const HARD_RELOAD_AFTER_MS = 90000;
-    const INFLIGHT_HANG_MS = 10000;
+    const STALE_THRESHOLD_SEC = 15;
 
-    const queryClient = useQueryClient();
-    const abortRef = useRef<AbortController | null>(null);
-    const softRecoveryAtRef = useRef<number>(0);
-    const fetchStartRef = useRef<number>(0);
+    const deviceIdRef = useRef<string>('');
+    const esRef = useRef<EventSource | null>(null);
 
-    const { data: visits = [], isError, isFetching, refetch, dataUpdatedAt } = useQuery<TruckVisit[]>({
-        queryKey: ['visits', 'display'],
-        queryFn: async ({ signal }) => {
-            abortRef.current?.abort(); // abort any previous in-flight request
-            const ctrl = new AbortController();
-            abortRef.current = ctrl;
-            signal.addEventListener('abort', () => ctrl.abort(), { once: true });
-            const timeoutId = setTimeout(() => ctrl.abort(), 4000);
-            try {
-                const res = await fetch('/api/display', { signal: ctrl.signal });
-                if (!res.ok) throw new Error('API error');
-                return await res.json();
-            } finally {
-                clearTimeout(timeoutId);
+    useEffect(() => {
+        // Obtain a stable deviceId per browser — used by back-office to
+        // identify which physical screen this is.
+        let deviceId: string | null = null;
+        try {
+            deviceId = localStorage.getItem('displayDeviceId');
+            if (!deviceId) {
+                deviceId = typeof crypto !== 'undefined' && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+                localStorage.setItem('displayDeviceId', deviceId);
             }
-        },
-        refetchInterval: 5000, // Fast refresh for display
-        refetchIntervalInBackground: true, // keep polling on suspended/hidden tabs
-        retry: 1, // Quick retry on failure
-    });
-
-    // Track in-flight fetch start time so the watchdog can detect a hung request
-    useEffect(() => {
-        if (isFetching) {
-            fetchStartRef.current = Date.now();
-        } else {
-            fetchStartRef.current = 0;
+        } catch {
+            deviceId = `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         }
-    }, [isFetching]);
+        deviceIdRef.current = deviceId;
 
-    // Track connection health — dataUpdatedAt ticks on every successful fetch,
-    // even when response is structurally equal to previous (visits ref unchanged).
-    useEffect(() => {
-        if (dataUpdatedAt > 0) {
-            setConnectionErrors(0);
-            setLastSuccessTime(new Date(dataUpdatedAt));
-            softRecoveryAtRef.current = 0;
-        }
-    }, [dataUpdatedAt]);
+        const connect = () => {
+            // Close any existing connection first (visibility resume path)
+            esRef.current?.close();
+            const url = `/api/display/stream?deviceId=${encodeURIComponent(deviceId!)}`;
+            const es = new EventSource(url);
+            esRef.current = es;
 
-    useEffect(() => {
-        if (isError) {
-            setConnectionErrors(prev => prev + 1);
-        }
-    }, [isError]);
-
-    // Auto-reload after prolonged connection loss (explicit network errors)
-    useEffect(() => {
-        if (connectionErrors >= MAX_ERRORS_BEFORE_RELOAD) {
-            console.log('Connection lost for too long, reloading page...');
-            window.location.reload();
-        }
-    }, [connectionErrors]);
-
-    // Kick polling immediately when tab regains visibility or network comes back
-    useEffect(() => {
-        const wake = (reason: string) => {
-            console.log(`Wake trigger: ${reason}. Forcing refetch.`);
-            abortRef.current?.abort();
-            queryClient.invalidateQueries({ queryKey: ['visits', 'display'] });
-            refetch();
+            es.onopen = () => setSseOpen(true);
+            es.onerror = () => {
+                setSseOpen(false);
+                // Browser will auto-reconnect while readyState !== CLOSED.
+                // If it actually closed (rare, e.g. server 4xx) we reconnect manually.
+                if (es.readyState === EventSource.CLOSED) {
+                    setTimeout(connect, 2000);
+                }
+            };
+            es.addEventListener('visits', (ev) => {
+                try {
+                    const data = JSON.parse((ev as MessageEvent).data);
+                    setVisits(data);
+                    setLastSuccessTime(new Date());
+                } catch (err) {
+                    console.error('Failed to parse visits SSE payload:', err);
+                }
+            });
         };
+
+        connect();
+
         const onVisibility = () => {
-            if (document.visibilityState === 'visible') wake('visibilitychange');
+            if (document.visibilityState === 'visible') connect();
         };
-        const onOnline = () => wake('online');
+        const onOnline = () => connect();
         document.addEventListener('visibilitychange', onVisibility);
         window.addEventListener('online', onOnline);
+
         return () => {
             document.removeEventListener('visibilitychange', onVisibility);
             window.removeEventListener('online', onOnline);
+            esRef.current?.close();
+            esRef.current = null;
         };
-    }, [queryClient, refetch]);
+    }, []);
 
-    // Two-stage watchdog:
-    //   Stage 1 (45s silence OR 10s in-flight hang) — abort + resetQueries + refetch (soft recovery)
-    //   Stage 2 (90s silence AND soft recovery was already attempted) — window.location.reload()
+    // Hard-reload watchdog: fires only if SSE delivers nothing for 90s.
     useEffect(() => {
         const watchdog = setInterval(() => {
-            const now = Date.now();
-            const timeSinceLastSuccess = now - lastSuccessTime.getTime();
-            const inflightFor = fetchStartRef.current > 0 ? now - fetchStartRef.current : 0;
-
-            // Hard reload — only after soft recovery was already tried
-            if (
-                timeSinceLastSuccess > HARD_RELOAD_AFTER_MS &&
-                softRecoveryAtRef.current > 0 &&
-                now - softRecoveryAtRef.current > 30000
-            ) {
-                console.log('Watchdog: soft recovery did not restore polling, reloading page...');
+            const silenceMs = Date.now() - lastSuccessTime.getTime();
+            if (silenceMs > HARD_RELOAD_AFTER_MS) {
+                console.log('Display watchdog: SSE silent for 90s, reloading page...');
                 window.location.reload();
-                return;
             }
-
-            // Soft recovery — first response on stalled polling or hung in-flight fetch
-            const needSoftRecovery =
-                (timeSinceLastSuccess > SOFT_RECOVERY_AFTER_MS || inflightFor > INFLIGHT_HANG_MS) &&
-                (softRecoveryAtRef.current === 0 || now - softRecoveryAtRef.current > 30000);
-
-            if (needSoftRecovery) {
-                console.log('Watchdog: attempting soft recovery (abort + reset + refetch).');
-                softRecoveryAtRef.current = now;
-                abortRef.current?.abort();
-                queryClient.resetQueries({ queryKey: ['visits', 'display'] });
-                refetch();
-            }
-        }, 5000);
+        }, 10000);
         return () => clearInterval(watchdog);
-    }, [lastSuccessTime, queryClient, refetch]);
+    }, [lastSuccessTime]);
 
-    // 1s tick to refresh the "last update Xs ago" indicator
+    // 1s tick to keep the status dot reactive to elapsed time.
     useEffect(() => {
         const t = setInterval(() => setNowTick(n => (n + 1) & 0xffff), 1000);
         return () => clearInterval(t);
     }, []);
 
-    const isConnectionLost = connectionErrors >= MAX_ERRORS_BEFORE_WARNING;
     const secondsSinceLastSuccess = Math.floor((Date.now() - lastSuccessTime.getTime()) / 1000);
+    const isConnectionLost = !sseOpen || secondsSinceLastSuccess > STALE_THRESHOLD_SEC;
 
     // Filter for display:
     // 1. CALLED/DOCKED/IN_SERVICE (Active dock assignments) - Top priority
@@ -393,7 +357,7 @@ function DisplayContent() {
                         </span>
                     </div>
                     <span className="text-red-300 text-xs">
-                        Auto-reload in {Math.max(0, (MAX_ERRORS_BEFORE_RELOAD - connectionErrors) * 5)}s
+                        Auto-reload in {Math.max(0, Math.ceil((HARD_RELOAD_AFTER_MS / 1000) - secondsSinceLastSuccess))}s
                     </span>
                 </div>
             )}

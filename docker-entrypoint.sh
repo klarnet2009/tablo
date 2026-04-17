@@ -119,6 +119,15 @@ CREATE TABLE IF NOT EXISTS LdapConfig (
     updatedById TEXT REFERENCES User(id)
 );
 
+-- Display table (connected display boards registry)
+CREATE TABLE IF NOT EXISTS Display (
+    id TEXT PRIMARY KEY,
+    deviceId TEXT UNIQUE NOT NULL,
+    name TEXT,
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_truckvisit_status ON TruckVisit(status);
 CREATE INDEX IF NOT EXISTS idx_truckvisit_plate ON TruckVisit(truckPlate);
@@ -147,6 +156,20 @@ else
         sqlite3 "$DB_PATH" "ALTER TABLE TruckVisit ADD COLUMN scheduledAt TEXT;"
     }
     
+    # Create Display table if it doesn't exist
+    sqlite3 "$DB_PATH" "SELECT 1 FROM Display LIMIT 1;" 2>/dev/null || {
+        echo "Creating Display table..."
+        sqlite3 "$DB_PATH" <<'EOF'
+CREATE TABLE IF NOT EXISTS Display (
+    id TEXT PRIMARY KEY,
+    deviceId TEXT UNIQUE NOT NULL,
+    name TEXT,
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+);
+EOF
+    }
+
     # Create LdapConfig table if it doesn't exist
     sqlite3 "$DB_PATH" "SELECT 1 FROM LdapConfig LIMIT 1;" 2>/dev/null || {
         echo "Creating LdapConfig table..."
