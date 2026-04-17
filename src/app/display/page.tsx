@@ -582,12 +582,10 @@ function DisplayContent() {
 
             {/* Footer / Paginator dots */}
             <div className="absolute bottom-1 right-2 flex items-center gap-2">
-                <span
-                    className={`text-[10px] font-mono ${secondsSinceLastSuccess > 15 ? 'text-red-400' : 'text-slate-600'}`}
-                    title="Time since last successful update"
-                >
-                    {secondsSinceLastSuccess}s
-                </span>
+                <div
+                    className={`w-1.5 h-1.5 rounded-full ${secondsSinceLastSuccess > 15 ? 'bg-red-500' : 'bg-green-500'}`}
+                    title="Connection status"
+                />
                 <div className="flex gap-1">
                     {Array.from({ length: Math.ceil((activeVisits.length + waitingVisits.length) / itemsPerPage) }).map((_, i) => (
                         <div
