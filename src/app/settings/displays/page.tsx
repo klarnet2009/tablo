@@ -8,6 +8,8 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { Monitor, Pencil, Trash2, ChevronRight, Check, X } from 'lucide-react';
 
+type DataStatus = 'synced' | 'lagging' | 'stale' | 'unknown';
+
 interface DisplayItem {
     id: string;
     deviceId: string;
@@ -18,8 +20,16 @@ interface DisplayItem {
     lastPayloadAt: string | null;
     ip: string | null;
     userAgent: string | null;
+    clientRevision: number | null;
+    clientRevisionAt: string | null;
+    dataStatus: DataStatus;
     createdAt: string;
     updatedAt: string;
+}
+
+interface DisplaysResponse {
+    serverRevision: number;
+    items: DisplayItem[];
 }
 
 const POLL_INTERVAL_MS = 3000;
@@ -40,6 +50,7 @@ function formatRelative(iso: string | null): string {
 export default function DisplaysSettingsPage() {
     const { data: session, status } = useSession();
     const [items, setItems] = useState<DisplayItem[] | null>(null);
+    const [serverRevision, setServerRevision] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -50,9 +61,12 @@ export default function DisplaysSettingsPage() {
             try {
                 const res = await fetch('/api/admin/displays', { cache: 'no-store' });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
+                const data: DisplaysResponse = await res.json();
                 if (!cancelled) {
                     setItems(data.items ?? []);
+                    setServerRevision(
+                        typeof data.serverRevision === 'number' ? data.serverRevision : null
+                    );
                     setError(null);
                 }
             } catch (e) {
@@ -102,7 +116,17 @@ export default function DisplaysSettingsPage() {
                             <ChevronRight className="w-4 h-4" />
                             <span>Displays</span>
                         </div>
-                        <h1 className="text-xl md:text-2xl font-bold text-white">Displays</h1>
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h1 className="text-xl md:text-2xl font-bold text-white">Displays</h1>
+                            {serverRevision !== null && (
+                                <span
+                                    className="text-xs text-slate-400 bg-slate-800/80 border border-slate-700/50 rounded-full px-2 py-0.5 font-mono"
+                                    title="Server visits-payload revision"
+                                >
+                                    server rev {serverRevision}
+                                </span>
+                            )}
+                        </div>
                         <p className="text-slate-400 text-sm md:text-base">
                             Public board monitors currently registered in the system.
                         </p>
@@ -137,6 +161,7 @@ export default function DisplaysSettingsPage() {
                                 <DisplayRow
                                     key={item.id}
                                     item={item}
+                                    serverRevision={serverRevision}
                                     onRenamed={handleRenamed}
                                     onDeleted={handleDeleted}
                                 />
@@ -152,11 +177,64 @@ export default function DisplaysSettingsPage() {
 
 interface RowProps {
     item: DisplayItem;
+    serverRevision: number | null;
     onRenamed: (id: string, name: string | null) => void;
     onDeleted: (id: string) => void;
 }
 
-function DisplayRow({ item, onRenamed, onDeleted }: RowProps) {
+function FreshnessBadge({
+    item,
+    serverRevision,
+}: {
+    item: DisplayItem;
+    serverRevision: number | null;
+}) {
+    if (!item.online) return null;
+
+    const clientRev = item.clientRevision;
+    const ackAgeSec = item.clientRevisionAt
+        ? Math.max(0, Math.floor((Date.now() - new Date(item.clientRevisionAt).getTime()) / 1000))
+        : null;
+
+    const tooltip = [
+        `client rev ${clientRev ?? '—'}`,
+        `server rev ${serverRevision ?? '—'}`,
+        ackAgeSec !== null ? `last ack ${ackAgeSec}s ago` : 'no ack yet',
+    ].join(' · ');
+
+    let label: string;
+    let cls: string;
+    switch (item.dataStatus) {
+        case 'synced':
+            label = clientRev !== null ? `✓ Fresh (rev ${clientRev})` : '✓ Fresh';
+            cls = 'bg-green-500/15 text-green-300 border-green-500/30';
+            break;
+        case 'lagging':
+            label = ackAgeSec !== null ? `⋯ Lagging (${ackAgeSec}s)` : '⋯ Lagging';
+            cls = 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30';
+            break;
+        case 'stale':
+            label = ackAgeSec !== null ? `⚠ Stale (${ackAgeSec}s)` : '⚠ Stale';
+            cls = 'bg-red-500/15 text-red-300 border-red-500/30';
+            break;
+        case 'unknown':
+        default:
+            label = '— syncing';
+            cls = 'bg-slate-500/15 text-slate-400 border-slate-500/30';
+            break;
+    }
+
+    return (
+        <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-medium ${cls}`}
+            title={tooltip}
+        >
+            {label}
+        </span>
+    );
+}
+
+function DisplayRow({ item, serverRevision, onRenamed, onDeleted }: RowProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(item.name ?? '');
     const [saving, setSaving] = useState(false);
@@ -299,7 +377,10 @@ function DisplayRow({ item, onRenamed, onDeleted }: RowProps) {
                             {shortId}
                         </div>
 
-                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                            {item.online && (
+                                <FreshnessBadge item={item} serverRevision={serverRevision} />
+                            )}
                             {item.online ? (
                                 <>
                                     <span>

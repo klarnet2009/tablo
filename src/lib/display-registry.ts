@@ -18,6 +18,10 @@ export interface ConnectionInfo {
     ip: string | null;
     userAgent: string | null;
     controller: ReadableStreamDefaultController<Uint8Array>;
+    // Most recent revision the client reported applying (via POST /api/display/ack).
+    // Lets the server distinguish "SSE open" from "client actually has fresh data".
+    clientRevision?: number;
+    clientRevisionAt?: Date;
 }
 
 export interface ConnectionSnapshot {
@@ -28,6 +32,8 @@ export interface ConnectionSnapshot {
     lastPayloadAt: Date;
     ip: string | null;
     userAgent: string | null;
+    clientRevision: number | null;
+    clientRevisionAt: Date | null;
 }
 
 const BROADCAST_INTERVAL_MS = 3000;
@@ -107,6 +113,21 @@ function buildVisitsPayload(visits: unknown): string {
 
 export function getVisitsRevision(): number {
     return globalState.displayVisitsRevision ?? 0;
+}
+
+/**
+ * Client reports it has applied `revision`. Called from POST /api/display/ack.
+ * Silently no-ops when the deviceId isn't currently connected (stale ack
+ * arriving after disconnect).
+ */
+export function ackClientRevision(deviceId: string, revision: number): void {
+    const conn = registry().get(deviceId);
+    if (!conn) return;
+    // Monotonicity guard: never regress the stored revision if an older ack
+    // arrives out of order over keepalive/fetch.
+    if (conn.clientRevision !== undefined && revision < conn.clientRevision) return;
+    conn.clientRevision = revision;
+    conn.clientRevisionAt = new Date();
 }
 
 function startBroadcastLoopIfNeeded() {
@@ -205,5 +226,7 @@ export async function listConnections(): Promise<ConnectionSnapshot[]> {
         lastPayloadAt: c.lastPayloadAt,
         ip: c.ip,
         userAgent: c.userAgent,
+        clientRevision: c.clientRevision ?? null,
+        clientRevisionAt: c.clientRevisionAt ?? null,
     }));
 }

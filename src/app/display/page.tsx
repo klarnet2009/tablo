@@ -208,6 +208,20 @@ function DisplayContent() {
                         : Array.isArray(parsed?.visits) ? parsed.visits : [];
                     if (typeof parsed?.revision === 'number') {
                         clientRevisionRef.current = parsed.revision;
+                        // Fire-and-forget ACK so the server can surface true
+                        // data freshness on /settings/displays. keepalive lets
+                        // the POST survive if the page is being closed.
+                        try {
+                            fetch('/api/display/ack', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    deviceId: deviceIdRef.current,
+                                    revision: parsed.revision,
+                                }),
+                                keepalive: true,
+                            }).catch(() => { /* swallow */ });
+                        } catch { /* swallow */ }
                     }
                     setVisits(visitsArray);
                     setLastSuccessTime(new Date());
