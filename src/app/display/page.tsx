@@ -152,9 +152,18 @@ function DisplayContent() {
 
     const HARD_RELOAD_AFTER_MS = 90000;
     const STALE_THRESHOLD_SEC = 15;
+    // Freshness watchdog constants: poll the server's current payload revision
+    // every FRESHNESS_POLL_MS. If the client's stored revision is behind the
+    // server's AND stays behind for longer than FRESHNESS_RECONNECT_AFTER_MS,
+    // force a soft SSE reconnect. Covers the case where SSE stays OPEN but
+    // delivery silently stops (proxy buffer, socket hang, HTTP/2 mux stall).
+    const FRESHNESS_POLL_MS = 10000;
+    const FRESHNESS_RECONNECT_AFTER_MS = 20000;
 
     const deviceIdRef = useRef<string>('');
     const esRef = useRef<EventSource | null>(null);
+    const connectRef = useRef<(() => void) | null>(null);
+    const clientRevisionRef = useRef<number | null>(null);
 
     useEffect(() => {
         // Obtain a stable deviceId per browser — used by back-office to
@@ -191,8 +200,16 @@ function DisplayContent() {
             };
             es.addEventListener('visits', (ev) => {
                 try {
-                    const data = JSON.parse((ev as MessageEvent).data);
-                    setVisits(data);
+                    const parsed = JSON.parse((ev as MessageEvent).data);
+                    // New payload shape is { revision, visits }. Tolerate the old
+                    // shape (bare array) in case of mixed deploy.
+                    const visitsArray: TruckVisit[] = Array.isArray(parsed)
+                        ? parsed
+                        : Array.isArray(parsed?.visits) ? parsed.visits : [];
+                    if (typeof parsed?.revision === 'number') {
+                        clientRevisionRef.current = parsed.revision;
+                    }
+                    setVisits(visitsArray);
                     setLastSuccessTime(new Date());
                 } catch (err) {
                     console.error('Failed to parse visits SSE payload:', err);
@@ -200,6 +217,7 @@ function DisplayContent() {
             });
         };
 
+        connectRef.current = connect;
         connect();
 
         const onVisibility = () => {
@@ -214,6 +232,67 @@ function DisplayContent() {
             window.removeEventListener('online', onOnline);
             esRef.current?.close();
             esRef.current = null;
+            connectRef.current = null;
+        };
+    }, []);
+
+    // Freshness watchdog. Independent of the SSE transport: asks the server
+    // "what's your current visits revision?" every 10s. If the answer doesn't
+    // match what we last received AND the gap persists for >20s, we assume
+    // silent delivery failure (connection looks fine, data is not arriving)
+    // and force a soft reconnect. Anything worse is handled by the 90s
+    // hard-reload watchdog above.
+    useEffect(() => {
+        let firstStaleAt: number | null = null;
+        let cancelled = false;
+
+        const poll = async () => {
+            try {
+                const res = await fetch('/api/display/revision', {
+                    cache: 'no-store',
+                    signal: AbortSignal.timeout(5000),
+                });
+                if (cancelled || !res.ok) return;
+                const body = await res.json();
+                const serverRev = typeof body?.revision === 'number' ? body.revision : null;
+                const clientRev = clientRevisionRef.current;
+
+                // No signal yet (no data ever received, or old server without
+                // revision field) — skip.
+                if (serverRev === null || clientRev === null) {
+                    firstStaleAt = null;
+                    return;
+                }
+
+                if (serverRev === clientRev) {
+                    // In sync. Reset stale timer.
+                    firstStaleAt = null;
+                    return;
+                }
+
+                // Out of sync. Start / continue the stale timer.
+                if (firstStaleAt === null) {
+                    firstStaleAt = Date.now();
+                    console.log(
+                        `[display] freshness drift: client rev=${clientRev}, server rev=${serverRev}`
+                    );
+                    return;
+                }
+
+                if (Date.now() - firstStaleAt > FRESHNESS_RECONNECT_AFTER_MS) {
+                    console.log('[display] stale too long, forcing SSE reconnect');
+                    firstStaleAt = null;
+                    connectRef.current?.();
+                }
+            } catch {
+                // Transient network errors are fine — 90s watchdog covers the worst case.
+            }
+        };
+
+        const timer = setInterval(poll, FRESHNESS_POLL_MS);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
         };
     }, []);
 

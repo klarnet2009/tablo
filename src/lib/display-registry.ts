@@ -36,6 +36,13 @@ type GlobalState = {
     displayRegistry?: Map<string, ConnectionInfo>;
     displayBroadcastInterval?: NodeJS.Timeout;
     displaySchemaReady?: boolean;
+    // Monotonic revision counter for the visits payload.
+    // Bumped whenever the broadcast loop sees data that differs from the
+    // previously broadcast JSON. The client polls /api/display/revision
+    // and compares against the revision embedded in each SSE payload to
+    // detect "connection is alive but delivery stopped" staleness.
+    displayVisitsRevision?: number;
+    displayVisitsLastJson?: string;
 };
 
 const globalState = globalThis as unknown as GlobalState;
@@ -86,6 +93,22 @@ async function fetchVisits() {
     });
 }
 
+function buildVisitsPayload(visits: unknown): string {
+    const visitsJson = JSON.stringify(visits);
+    if (visitsJson !== globalState.displayVisitsLastJson) {
+        globalState.displayVisitsRevision = (globalState.displayVisitsRevision ?? 0) + 1;
+        globalState.displayVisitsLastJson = visitsJson;
+    }
+    const revision = globalState.displayVisitsRevision ?? 0;
+    // Payload shape: { revision, visits }. Client falls back to treating the
+    // root as the visits array for backwards compatibility during rolling deploys.
+    return `event: visits\ndata: {"revision":${revision},"visits":${visitsJson}}\n\n`;
+}
+
+export function getVisitsRevision(): number {
+    return globalState.displayVisitsRevision ?? 0;
+}
+
 function startBroadcastLoopIfNeeded() {
     if (globalState.displayBroadcastInterval) return;
     globalState.displayBroadcastInterval = setInterval(async () => {
@@ -93,7 +116,7 @@ function startBroadcastLoopIfNeeded() {
         if (reg.size === 0) return;
         try {
             const visits = await fetchVisits();
-            broadcast(`event: visits\ndata: ${JSON.stringify(visits)}\n\n`);
+            broadcast(buildVisitsPayload(visits));
         } catch (err) {
             console.error('[display-registry] broadcast failed:', err);
         }
@@ -155,9 +178,7 @@ export async function sendInitialSnapshot(deviceId: string): Promise<void> {
     if (!conn) return;
     try {
         const visits = await fetchVisits();
-        conn.controller.enqueue(
-            encoder.encode(`event: visits\ndata: ${JSON.stringify(visits)}\n\n`)
-        );
+        conn.controller.enqueue(encoder.encode(buildVisitsPayload(visits)));
         conn.lastPayloadAt = new Date();
     } catch (err) {
         console.error('[display-registry] initial snapshot failed:', err);
