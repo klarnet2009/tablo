@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,15 +9,9 @@ export const dynamic = 'force-dynamic';
  * Clear all trucks from the queue (set to CANCELLED status)
  */
 export async function DELETE() {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only allow admins or supervisors to clear all
-    if (!['ADMIN', 'SUPERVISOR'].includes(session.user.role)) {
-        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-    }
+    const guard = await requireRole(['SUPERVISOR', 'ADMIN']);
+    if (!guard.ok) return guard.response;
+    const session = guard.session;
 
     try {
         // First, free up all docks that are busy

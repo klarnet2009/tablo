@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
 import { z } from 'zod';
 
@@ -16,18 +15,11 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const guard = await requireRole(['DISPATCHER', 'SUPERVISOR', 'ADMIN']);
+    if (!guard.ok) return guard.response;
+    const session = guard.session;
 
     const { id } = await params;
-    const userRole = session.user.role;
-
-    // Only DISPATCHER, SUPERVISOR, ADMIN can reassign docks
-    if (!['DISPATCHER', 'SUPERVISOR', 'ADMIN'].includes(userRole)) {
-        return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
-    }
 
     try {
         const body = await request.json();

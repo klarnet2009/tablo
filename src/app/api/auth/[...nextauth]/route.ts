@@ -227,7 +227,10 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: 'jwt',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
+        // Was 30 days. The role and active flag baked into the token are re-checked
+        // against the database by requireRole() on every API call, so this bound
+        // only limits how long a stolen token stays usable — a shift, not a month.
+        maxAge: 12 * 60 * 60, // 12 hours
     },
 };
 

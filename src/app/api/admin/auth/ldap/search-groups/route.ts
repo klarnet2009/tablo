@@ -4,9 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import { searchGroups } from '@/lib/ldap-service';
 
 export const dynamic = 'force-dynamic';
@@ -14,14 +13,8 @@ export const dynamic = 'force-dynamic';
 // POST /api/admin/auth/ldap/search-groups
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json(
-                { error: 'Unauthorized', message: 'Admin access required' },
-                { status: 403 }
-            );
-        }
+        const guard = await requireRole(['ADMIN']);
+        if (!guard.ok) return guard.response;
 
         const body = await request.json();
         const { query, baseDn } = body;
