@@ -5,8 +5,11 @@ FROM base AS deps
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm install --frozen-lockfile || npm install
+COPY package.json package-lock.json ./
+# npm ci installs exactly what package-lock.json pins and fails loudly on drift.
+# (`--frozen-lockfile` is a yarn/pnpm flag; npm ignored it, so the previous
+# command silently fell through to an unpinned `npm install`.)
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -32,9 +35,6 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y openssl wget sqlite3 && rm -rf /var/lib/apt/lists/*
 
-# Update npm to latest and install prisma globally
-RUN npm install -g npm@latest prisma
-
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -59,6 +59,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/@libsql ./node_modules/@libsql
+# docker-entrypoint.sh hashes ADMIN_INITIAL_PASSWORD with bcryptjs when it creates
+# the initial admin account, so it must resolve from /app at runtime.
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
 # Copy and setup entrypoint script
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh

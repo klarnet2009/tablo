@@ -1,0 +1,26 @@
+# Without this file `COPY . .` in the builder stage pulls the host's .env (real
+# secrets) and dev.db into an image layer, and overwrites the node_modules
+# installed by the deps stage with whatever the host happens to have.
+
+.git
+.gitignore
+.claude
+node_modules
+.next
+out
+build
+coverage
+
+# secrets and local data
+.env
+.env.*
+*.db
+*.db-journal
+*.pem
+
+# local tooling output
+*.tsbuildinfo
+npm-debug.log*
+Dockerfile
+docker-compose.yml
+README.md
