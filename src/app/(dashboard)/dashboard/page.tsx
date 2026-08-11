@@ -2,14 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import {
-    Truck,
-    Clock,
-    CheckCircle,
-    AlertTriangle,
-    Square,
-    TrendingUp
-} from 'lucide-react';
+import { Truck, Clock, Square, TrendingUp } from 'lucide-react';
 import { StatusBadge, PriorityBadge } from '@/components/queue/StatusBadge';
 import Link from 'next/link';
 
@@ -68,19 +61,27 @@ export default function DashboardPage() {
         { label: 'Busy Docks', value: busyDocks, icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/10' },
     ];
 
-    // /api/visits already returns the queue in order (see lib/queue-order.ts).
-    const queue = visits.filter(v => v.status === 'WAITING');
+    // Queue sorted by priority and position
+    const queue = visits
+        .filter(v => v.status === 'WAITING')
+        .sort((a, b) => {
+            const priorityOrder = { URGENT: 0, SLA: 1, HIGH: 2, NORMAL: 3 };
+            const pa = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 3;
+            const pb = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 3;
+            if (pa !== pb) return pa - pb;
+            return (a.queuePosition || 999) - (b.queuePosition || 999);
+        });
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-                <p className="text-slate-400">Welcome back, {session?.user.displayName}</p>
+                <h1 className="text-xl md:text-2xl font-bold text-white">Dashboard</h1>
+                <p className="text-slate-400 text-sm md:text-base">Welcome back, {session?.user.displayName}</p>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                 {stats.map((stat) => (
                     <div key={stat.label} className={`${stat.bg} rounded-xl p-5 border border-slate-700/50`}>
                         <div className="flex items-center justify-between">
@@ -94,7 +95,7 @@ export default function DashboardPage() {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                 {/* Queue */}
                 <div className="lg:col-span-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
                     <div className="p-4 border-b border-slate-700 flex items-center justify-between">
@@ -178,7 +179,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Display Board Preview */}
+            {/* Display Board Preview - Hidden on mobile */}
             <div className="bg-slate-800/50 rounded-xl border border-slate-700/50">
                 <div className="p-4 border-b border-slate-700 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-white">Public Display Board</h2>
@@ -187,13 +188,14 @@ export default function DashboardPage() {
                             href="/display"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1"
+                            className="text-sm bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1 touch-target"
                         >
                             Open Full Screen ↗
                         </a>
                     </div>
                 </div>
-                <div className="p-4">
+                {/* Hide preview iframe on mobile - too small to be useful */}
+                <div className="p-4 hidden md:block">
                     <div className="relative w-full aspect-[16/9] bg-slate-900 rounded-lg overflow-hidden border border-slate-600">
                         <iframe
                             src="/display"
@@ -206,6 +208,9 @@ export default function DashboardPage() {
                         Click preview or &quot;Open Full Screen&quot; to view on external monitor • No login required
                     </p>
                 </div>
+                <p className="p-4 text-sm text-slate-400 text-center md:hidden">
+                    Open on a larger screen for preview
+                </p>
             </div>
         </div>
     );

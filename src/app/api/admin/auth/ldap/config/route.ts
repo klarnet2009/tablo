@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
-import { encrypt, decrypt } from '@/lib/crypto';
+import { encrypt } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 

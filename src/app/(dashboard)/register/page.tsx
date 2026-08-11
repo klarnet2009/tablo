@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Truck, ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function RegisterPage() {
-    const router = useRouter();
     const queryClient = useQueryClient();
     const [success, setSuccess] = useState(false);
     const [createdPlate, setCreatedPlate] = useState('');

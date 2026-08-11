@@ -139,12 +139,6 @@ export function ServiceAccountPicker({
         }
     };
 
-    // Extract readable name from DN
-    const extractName = (dn: string): string => {
-        const match = dn.match(/^CN=([^,]+)/i);
-        return match ? match[1] : dn;
-    };
-
     return (
         <div ref={containerRef} className="space-y-2">
             {/* Mode toggle */}

@@ -9,7 +9,6 @@ import {
     PlusCircle,
     Square,
     Menu,
-    X,
     LogOut,
     Settings,
     User

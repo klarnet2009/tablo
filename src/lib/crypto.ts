@@ -100,17 +100,3 @@ export function decrypt(encryptedBase64: string): string {
         return '';
     }
 }
-
-/**
- * Check if a value is encrypted (basic check)
- */
-export function isEncrypted(value: string): boolean {
-    if (!value) return false;
-    try {
-        const decoded = Buffer.from(value, 'base64');
-        // Minimum length: IV + AuthTag + at least 1 byte ciphertext
-        return decoded.length > IV_LENGTH + AUTH_TAG_LENGTH;
-    } catch {
-        return false;
-    }
-}

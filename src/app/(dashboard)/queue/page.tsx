@@ -6,8 +6,6 @@ import { StatusBadge, PriorityBadge } from '@/components/queue/StatusBadge';
 import { getAvailableTransitions, VisitStatus, UserRole } from '@/lib/status-machine';
 import { sortVisitsForQueue } from '@/lib/queue-order';
 import {
-    Phone,
-    MoreVertical,
     Play,
     Pause,
     X,
@@ -779,7 +777,7 @@ export default function QueuePage() {
                                         } else {
                                             alert('Failed to save changes');
                                         }
-                                    } catch (err) {
+                                    } catch {
                                         alert('Failed to save changes');
                                     } finally {
                                         setEditSaving(false);

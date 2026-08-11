@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { Square, Settings, Truck, Snowflake, AlertTriangle } from 'lucide-react';
+import { Square, Truck, Snowflake, AlertTriangle } from 'lucide-react';
 
 interface Dock {
     id: string;

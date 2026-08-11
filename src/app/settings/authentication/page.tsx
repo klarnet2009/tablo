@@ -1,36 +1,12 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { MobileNav } from '@/components/layout/MobileNav';
 import { Shield, ChevronRight } from 'lucide-react';
 
+// Session and role are enforced by src/app/settings/layout.tsx.
 export default function AuthenticationSettingsPage() {
-    const { data: session, status } = useSession();
-
-    if (status === 'loading') {
-        return (
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-        );
-    }
-
-    if (!session) {
-        redirect('/login');
-    }
-
-    if (session.user.role !== 'ADMIN') {
-        redirect('/queue');
-    }
-
     return (
-        <div className="flex min-h-screen bg-slate-900">
-            <Sidebar />
-            <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">
-                <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
                     {/* Header */}
                     <div>
                         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
@@ -86,9 +62,6 @@ export default function AuthenticationSettingsPage() {
                             <p className="text-xs mt-1">OAuth 2.0, SAML, etc.</p>
                         </div>
                     </div>
-                </div>
-            </main>
-            <MobileNav />
         </div>
     );
 }
