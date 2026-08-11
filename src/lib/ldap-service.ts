@@ -4,9 +4,14 @@
  * group membership, and AD-specific features like disabled user detection.
  */
 
-import { Client, SearchOptions } from 'ldapts';
-import { decrypt } from './crypto';
-import { buildUserSearchFilter, escapeFilterValue } from './ldap-filter';
+import { Client } from 'ldapts';
+// SearchOptions is a type; importing it as a value leaves a runtime import of a
+// name the package does not export.
+import type { SearchOptions } from 'ldapts';
+// Explicit extensions so `node --test` can load this module (Node's ESM loader
+// does not guess extensions the way the bundler does).
+import { decrypt } from './crypto.ts';
+import { buildUserSearchFilter, escapeFilterValue } from './ldap-filter.ts';
 
 // Local interface to avoid Prisma type generation dependency
 // This matches the LdapConfig model in prisma/schema.prisma
