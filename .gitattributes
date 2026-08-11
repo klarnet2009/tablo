@@ -1,0 +1,8 @@
+# Files that are executed inside the Linux container must keep LF endings.
+# With core.autocrlf=true (the Windows default) a checkout would otherwise
+# rewrite docker-entrypoint.sh with CRLF, and `#!/bin/sh\r` fails to exec as
+# "bad interpreter".
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-entrypoint.sh text eol=lf
+*.sql text eol=lf
