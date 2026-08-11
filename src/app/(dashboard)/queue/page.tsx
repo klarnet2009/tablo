@@ -42,6 +42,7 @@ interface TruckVisit {
     arrivedAt?: string;
     calledAt?: string;
     orderRef?: string;
+    notes?: string;
 }
 
 interface Dock {
@@ -126,6 +127,10 @@ export default function QueuePage() {
             setShowDockModal(false);
             setSelectedVisit(null);
         },
+        // Without this the rejection reason ("Dock is already assigned to another
+        // active visit", "You do not have permission for this transition") was
+        // thrown away and the button just appeared to do nothing.
+        onError: (error: Error) => alert(error.message),
     });
 
     const userRole = (session?.user?.role || 'SECURITY') as UserRole;
@@ -171,6 +176,7 @@ export default function QueuePage() {
             setSelectedVisit(null);
             setReassignMode(false);
         },
+        onError: (error: Error) => alert(error.message),
     });
 
     const handleReassignDock = (visit: TruckVisit) => {
@@ -225,7 +231,9 @@ export default function QueuePage() {
                                     orderRef: visit.orderRef || '',
                                     priority: visit.priority || 'NORMAL',
                                     scheduledAt: visit.scheduledAt ? new Date(visit.scheduledAt).toTimeString().slice(0, 5) : '',
-                                    notes: '',
+                                    // Was hardcoded to '', which wiped the visit's
+                                    // notes on every save from this modal.
+                                    notes: visit.notes || '',
                                 });
                                 setShowEditModal(true);
                             }}
@@ -356,22 +364,23 @@ export default function QueuePage() {
                     </button>
                     <button
                         onClick={async () => {
-                            if (!confirm('Are you sure you want to clear ALL trucks from the queue? This cannot be undone.')) return;
+                            if (!confirm(`Discard all ${planned.length} planned visit(s)? Trucks that have arrived are not affected. This cannot be undone.`)) return;
                             try {
                                 const res = await fetch('/api/visits/clear-all', { method: 'DELETE' });
                                 if (res.ok) {
                                     queryClient.invalidateQueries({ queryKey: ['visits'] });
                                 } else {
-                                    alert('Failed to clear queue');
+                                    const body = await res.json().catch(() => ({}));
+                                    alert(body.error || 'Failed to clear planned visits');
                                 }
-                            } catch (err) {
-                                alert('Failed to clear queue');
+                            } catch {
+                                alert('Failed to clear planned visits');
                             }
                         }}
                         className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-sm touch-target"
                     >
                         <Trash2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Clear All</span>
+                        <span className="hidden sm:inline">Clear Planned</span>
                     </button>
                     <button
                         onClick={async () => {

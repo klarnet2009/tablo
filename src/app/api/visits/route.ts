@@ -145,7 +145,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(visit, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: (error as any).errors }, { status: 400 });
+            // zod v4 exposes .issues; .errors does not exist, so this used to
+            // answer {"error": undefined} and the client showed no reason at all.
+            return NextResponse.json({ error: z.prettifyError(error), issues: error.issues }, { status: 400 });
         }
         console.error('Error creating visit:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

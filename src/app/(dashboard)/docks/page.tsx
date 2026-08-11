@@ -59,6 +59,7 @@ export default function DocksPage() {
         INBOUND: 'Inbound only',
         OUTBOUND: 'Outbound only',
         BOTH: 'In/Outbound',
+        SCALES: 'Weighbridge',
     };
 
     return (
@@ -126,6 +127,17 @@ export default function DocksPage() {
                                             <p className="text-xs text-slate-400 mt-1">{dock.currentVisit.carrier}</p>
                                         )}
                                     </div>
+                                )}
+
+                                {/* A dock stuck BUSY with no truck on it cannot be claimed
+                                    (see lib/docks.ts) and has to be freed by hand. */}
+                                {canManage && dock.status === 'BUSY' && !dock.currentVisit && (
+                                    <button
+                                        onClick={() => updateMutation.mutate({ id: dock.id, status: 'AVAILABLE' })}
+                                        className="w-full px-3 py-2 text-xs bg-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/30 transition"
+                                    >
+                                        Mark free (no truck at dock)
+                                    </button>
                                 )}
 
                                 {/* Actions */}
