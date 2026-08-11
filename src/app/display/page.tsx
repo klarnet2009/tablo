@@ -135,62 +135,48 @@ function DisplayContent() {
 
     // Connection health monitoring
     const [connectionErrors, setConnectionErrors] = useState(0);
-    const [lastSuccessTime, setLastSuccessTime] = useState<Date>(new Date());
     const MAX_ERRORS_BEFORE_WARNING = 3; // 15 seconds
     const MAX_ERRORS_BEFORE_RELOAD = 12; // 60 seconds
 
-    const { data: visits = [], isError, isSuccess } = useQuery<TruckVisit[]>({
+    const { data: visits = [], errorUpdatedAt, dataUpdatedAt } = useQuery<TruckVisit[]>({
         queryKey: ['visits', 'display'],
         queryFn: async () => {
             const res = await fetch('/api/display', {
                 signal: AbortSignal.timeout(4000)
             });
             if (!res.ok) throw new Error('API error');
-            const data = await res.json();
-            return data;
+            return await res.json();
         },
-        refetchInterval: 5000, // Fast refresh for display
-        retry: 1, // Quick retry on failure
+        refetchInterval: 5000,
+        // KEY FIX: continue polling even when the browser tab loses focus.
+        // Without this, React Query pauses refetchInterval on backgrounded/unfocused tabs,
+        // which is exactly what happens on TV kiosk browsers.
+        refetchIntervalInBackground: true,
+        // Never pause on `navigator.onLine === false`: a paused query produces neither
+        // success nor error, so connectionErrors would stay 0 and the auto-reload below
+        // would never fire. This is what the removed stall watchdog used to cover.
+        networkMode: 'always',
+        retry: 1,
     });
 
-    // Track connection health
+    // errorUpdatedAt is a timestamp that increments on every new error — unlike isError
+    // which stays `true` and won't re-trigger useEffect on subsequent failures.
     useEffect(() => {
-        if (isSuccess) {
-            setConnectionErrors(0);
-            setLastSuccessTime(new Date());
-        }
-    }, [isSuccess, visits]);
+        if (errorUpdatedAt > 0) setConnectionErrors(prev => prev + 1);
+    }, [errorUpdatedAt]);
 
+    // dataUpdatedAt increments on every successful fetch
     useEffect(() => {
-        if (isError) {
-            setConnectionErrors(prev => prev + 1);
-        }
-    }, [isError]);
+        if (dataUpdatedAt > 0) setConnectionErrors(0);
+    }, [dataUpdatedAt]);
 
-    // Auto-reload after prolonged connection loss
+    // Auto-reload after prolonged connection loss (60 seconds)
     useEffect(() => {
         if (connectionErrors >= MAX_ERRORS_BEFORE_RELOAD) {
             console.log('Connection lost for too long, reloading page...');
             window.location.reload();
         }
     }, [connectionErrors]);
-
-    // Independent Watchdog: Force reload only if the polling system itself 
-    // has completely crashed (no success AND no network errors for 2+ minutes).
-    // A working empty queue will constantly update lastSuccessTime.
-    useEffect(() => {
-        const watchdog = setInterval(() => {
-            const timeSinceLastSuccess = new Date().getTime() - lastSuccessTime.getTime();
-            // If the time since the last success is over 2 minutes, AND we haven't registered
-            // connection errors (which would trigger the other reload), it means the JS event
-            // loop is stuck, the browser tab is suspended, or useQuery stopped polling.
-            if (timeSinceLastSuccess > 120000 && connectionErrors === 0) {
-                console.log('Watchdog triggered: Event loop stalled or polling stopped. Reloading...');
-                window.location.reload();
-            }
-        }, 10000);
-        return () => clearInterval(watchdog);
-    }, [lastSuccessTime, connectionErrors]);
 
     const isConnectionLost = connectionErrors >= MAX_ERRORS_BEFORE_WARNING;
 
