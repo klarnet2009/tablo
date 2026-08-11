@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { z } from 'zod';
+
+// Was unvalidated: a missing name or a string dockNumber reached Prisma and came
+// back as a 500.
+const createDockSchema = z.object({
+    name: z.string().min(1),
+    dockNumber: z.number().int().positive(),
+    dockType: z.enum(['INBOUND', 'OUTBOUND', 'BOTH', 'SCALES']).default('BOTH'),
+    hasReeferPower: z.boolean().default(false),
+    hazmatOk: z.boolean().default(false),
+    maxLength: z.number().positive().nullish(),
+    dockHeight: z.number().positive().nullish(),
+});
 
 // GET /api/docks - List all docks
 export async function GET() {
@@ -36,23 +49,17 @@ export async function POST(request: NextRequest) {
     if (!guard.ok) return guard.response;
 
     try {
-        const body = await request.json();
+        const data = createDockSchema.parse(await request.json());
 
         const dock = await prisma.dock.create({
-            data: {
-                name: body.name,
-                dockNumber: body.dockNumber,
-                dockType: body.dockType || 'BOTH',
-                hasReeferPower: body.hasReeferPower || false,
-                hazmatOk: body.hazmatOk || false,
-                maxLength: body.maxLength,
-                dockHeight: body.dockHeight,
-                status: 'AVAILABLE',
-            },
+            data: { ...data, status: 'AVAILABLE' },
         });
 
         return NextResponse.json(dock, { status: 201 });
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: z.prettifyError(error), issues: error.issues }, { status: 400 });
+        }
         console.error('Error creating dock:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
+import { createAuditLog, AuditActions } from '@/lib/audit';
 
 /**
  * POST /api/visits/import
@@ -67,6 +68,17 @@ export async function POST(request: NextRequest) {
 
             createdVisits.push(visit);
         }
+
+        await createAuditLog({
+            action: AuditActions.VISIT_CREATED,
+            entityType: 'TruckVisit',
+            entityId: 'cargo-import',
+            userId: session.user.id,
+            metadata: {
+                imported: createdVisits.map(v => ({ id: v.id, orderRef: v.orderRef })),
+                updated: updatedVisits.map(v => ({ id: v.id, orderRef: v.orderRef })),
+            },
+        });
 
         return NextResponse.json({
             success: true,
