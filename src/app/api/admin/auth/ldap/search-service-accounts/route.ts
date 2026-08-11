@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { Client } from 'ldapts';
+import { escapeFilterValue } from '@/lib/ldap-filter';
 
 export async function POST(request: NextRequest) {
     try {
@@ -32,6 +33,11 @@ export async function POST(request: NextRequest) {
         }
 
         const { host, port, connectionMode, baseDn, bindDn, bindPassword } = connectionConfig;
+        // Honour the operator's TLS choice instead of blindly trusting any certificate.
+        const tlsOptions = {
+            rejectUnauthorized: connectionConfig.tlsRejectUnauthorized ?? true,
+            ...(connectionConfig.tlsCaCert ? { ca: connectionConfig.tlsCaCert } : {}),
+        };
 
         if (!host || !baseDn) {
             return NextResponse.json({
@@ -48,14 +54,14 @@ export async function POST(request: NextRequest) {
             url,
             timeout: 5000,
             connectTimeout: 5000,
-            tlsOptions: connectionMode !== 'LDAP' ? { rejectUnauthorized: false } : undefined,
+            tlsOptions: connectionMode !== 'LDAP' ? tlsOptions : undefined,
             strictDN: false,
         });
 
         try {
             // Perform STARTTLS upgrade if needed
             if (connectionMode === 'STARTTLS') {
-                await client.startTLS({ rejectUnauthorized: false });
+                await client.startTLS(tlsOptions);
             }
 
             // If we have bind credentials, use them; otherwise try anonymous
@@ -63,8 +69,7 @@ export async function POST(request: NextRequest) {
                 await client.bind(bindDn, bindPassword);
             }
 
-            // Escape special LDAP filter characters
-            const escapedQuery = query.replace(/[\\*()]/g, (c: string) => `\\${c.charCodeAt(0).toString(16)}`);
+            const escapedQuery = escapeFilterValue(query);
 
             // Search for users/service accounts matching the query
             // Look for user objects (including service accounts)
