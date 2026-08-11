@@ -5,18 +5,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { Client } from 'ldapts';
+import { requireRole } from '@/lib/api-auth';
 import { escapeFilterValue } from '@/lib/ldap-filter';
 
 export async function POST(request: NextRequest) {
     try {
-        // Check authorization
-        const session = await getServerSession(authOptions);
-        if (!session || !['ADMIN', 'SUPERVISOR'].includes(session.user.role)) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        // ADMIN only: connects to a caller-supplied host with caller-supplied
+        // credentials, so it must not be reachable by lower roles.
+        const guard = await requireRole(['ADMIN']);
+        if (!guard.ok) return guard.response;
 
         const body = await request.json();
         const { query, connectionConfig } = body;

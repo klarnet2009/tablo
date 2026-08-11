@@ -1,8 +1,8 @@
 /**
- * Decides what to do when LDAP authentication does not succeed.
+ * LDAP authentication and connection-test policy.
  *
  * Kept separate from ldap-service.ts (which needs a live directory) so the
- * policy itself is unit-testable.
+ * decisions themselves are unit-testable.
  */
 
 export interface LdapFailureInput {
@@ -61,4 +61,58 @@ export function resolveLdapFailure(
     }
 
     return { action: 'fallback' };
+}
+
+interface RequestedBind {
+    host: string;
+    port: number;
+    bindDn: string;
+    bindPassword?: string;
+}
+
+interface StoredBind {
+    host: string;
+    port: number;
+    bindDn: string;
+    hasStoredPassword: boolean;
+}
+
+function sameTarget(a: string, b: string): boolean {
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+/**
+ * Decide which password a connection test is allowed to bind with.
+ *
+ * The stored service-account password may only be replayed against the server it
+ * was stored for. Without this check a caller supplies their own `host`, omits
+ * the password, and the server performs a cleartext bind with the real directory
+ * credentials against a host of the caller's choosing.
+ */
+export function resolveBindPasswordSource(
+    requested: RequestedBind,
+    stored: StoredBind | null
+): { source: 'request' } | { source: 'stored' } | { error: string } {
+    if (requested.bindPassword) {
+        return { source: 'request' };
+    }
+
+    if (!stored?.hasStoredPassword) {
+        return { error: 'Bind DN and password are required' };
+    }
+
+    const targetsStoredServer =
+        sameTarget(requested.host, stored.host) &&
+        requested.port === stored.port &&
+        sameTarget(requested.bindDn, stored.bindDn);
+
+    if (!targetsStoredServer) {
+        return {
+            error:
+                'The saved service-account password can only be used with the saved ' +
+                'host, port and bind DN. Enter the password to test a different target.',
+        };
+    }
+
+    return { source: 'stored' };
 }

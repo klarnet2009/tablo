@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { externalApiRequest, isExternalApiConfigured } from '@/lib/external-api';
+import { requireRole } from '@/lib/api-auth';
 
 /**
  * Cargo schedule item from external API (based on actual response structure)
@@ -85,6 +86,11 @@ interface MappedTruckVisit {
  */
 export async function GET(request: NextRequest) {
     try {
+        // This proxies partner names, order references and plates from the external
+        // system using server-side credentials, so it must not be world-readable.
+        const guard = await requireRole();
+        if (!guard.ok) return guard.response;
+
         if (!isExternalApiConfigured()) {
             return NextResponse.json(
                 { error: 'External API not configured. Check environment variables.' },

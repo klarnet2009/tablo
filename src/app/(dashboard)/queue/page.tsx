@@ -128,6 +128,8 @@ export default function QueuePage() {
     });
 
     const userRole = (session?.user?.role || 'SECURITY') as UserRole;
+    // Mirrors CAN_EDIT_VISIT in the PATCH /api/visits/[id] route.
+    const canEditVisit = ['DISPATCHER', 'SUPERVISOR', 'ADMIN'].includes(userRole);
 
     const handleStatusChange = (visit: TruckVisit, newStatus: string) => {
         if (newStatus === 'CALLED' && !visit.assignedDock) {
@@ -207,7 +209,7 @@ export default function QueuePage() {
                         <p className="text-sm text-slate-400 truncate max-w-[180px]">{visit.carrier || 'Unknown carrier'}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
+                        {canEditVisit && <button
                             onClick={() => {
                                 setEditingVisit(visit);
                                 setEditForm({
@@ -228,7 +230,7 @@ export default function QueuePage() {
                             title="Edit truck info"
                         >
                             <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        </button>}
                         <StatusBadge status={visit.status} />
                     </div>
                 </div>

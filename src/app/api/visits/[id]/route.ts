@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import { z } from 'zod';
 
+// Editing visit details (priority, plates, carrier, schedule) is dispatcher work;
+// see the transition table in lib/status-machine.ts for the same split.
+const CAN_EDIT_VISIT = ['DISPATCHER', 'SUPERVISOR', 'ADMIN'] as const;
+
 const updateVisitSchema = z.object({
-    truckPlate: z.string().optional().transform(s => s?.toUpperCase().replace(/\s/g, '')),
+    truckPlate: z.string().min(1).optional().transform(s => s?.toUpperCase().replace(/\s/g, '')),
     trailerPlate: z.string().optional().transform(s => s?.toUpperCase().replace(/\s/g, '')),
     carrier: z.string().optional(),
     driverName: z.string().optional(),
@@ -53,10 +58,8 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const guard = await requireRole(CAN_EDIT_VISIT);
+    if (!guard.ok) return guard.response;
 
     const { id } = await params;
 

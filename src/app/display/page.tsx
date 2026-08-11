@@ -49,12 +49,17 @@ function DisplayContent() {
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [showParkingWarning, setShowParkingWarning] = useState(false);
 
+    // Ticks once a second. Drives the clock and, below, how stale the queue data is.
+    const [nowTs, setNowTs] = useState(() => Date.now());
+    const [mountedAt] = useState(() => Date.now());
+
     useEffect(() => {
-        // Update clock every second
-        const timer = setInterval(() => {
+        const tick = () => {
             const now = new Date();
             setCurrentTime(now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
-        }, 1000);
+            setNowTs(now.getTime());
+        };
+        const timer = setInterval(tick, 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -96,22 +101,36 @@ function DisplayContent() {
     useEffect(() => {
         const cycleTime = 600000; // 10 minutes cycle
 
-        // Show immediately on load, then every 10 minutes
-        triggerWarning();
+        // Shortly after load, then every 10 minutes. The initial call is deferred
+        // so the first paint is not a full-width red banner.
+        const firstRun = setTimeout(triggerWarning, 2000);
         const timer = setInterval(triggerWarning, cycleTime);
-        return () => clearInterval(timer);
+        return () => {
+            clearTimeout(firstRun);
+            clearInterval(timer);
+        };
     }, []);
 
-    // Poll for manual trigger from queue management
+    // Poll for a manual trigger from queue management. The endpoint returns the
+    // timestamp of the last trigger and we react to it changing, so the display
+    // needs no write access to clear it (it is an unauthenticated screen) and
+    // several screens can react to the same trigger.
+    const lastTriggerRef = useRef<number | null>(null);
     useEffect(() => {
         const pollTrigger = async () => {
             try {
                 const res = await fetch('/api/display/warning-trigger');
-                const data = await res.json();
-                if (data.trigger && !showParkingWarning) {
-                    triggerWarning();
-                    // Clear the trigger
-                    await fetch('/api/display/warning-trigger', { method: 'DELETE' });
+                const { triggeredAt } = await res.json();
+
+                // First poll only records the current value: a trigger fired before
+                // this screen was opened must not replay on load.
+                if (lastTriggerRef.current === null) {
+                    lastTriggerRef.current = triggeredAt;
+                    return;
+                }
+                if (triggeredAt !== lastTriggerRef.current) {
+                    lastTriggerRef.current = triggeredAt;
+                    if (triggeredAt > 0 && !showParkingWarning) triggerWarning();
                 }
             } catch {
                 // Ignore errors
@@ -133,12 +152,13 @@ function DisplayContent() {
 
     const warningT = getTranslations(locales[warningLocaleIndex]);
 
-    // Connection health monitoring
-    const [connectionErrors, setConnectionErrors] = useState(0);
-    const MAX_ERRORS_BEFORE_WARNING = 3; // 15 seconds
-    const MAX_ERRORS_BEFORE_RELOAD = 12; // 60 seconds
+    // Connection health: measured as "how long since the last successful fetch"
+    // rather than by counting error events, so a query that stops firing at all
+    // (paused, suspended tab, stalled event loop) is caught the same way.
+    const STALE_WARNING_MS = 15000;
+    const STALE_RELOAD_MS = 60000;
 
-    const { data: visits = [], errorUpdatedAt, dataUpdatedAt } = useQuery<TruckVisit[]>({
+    const { data: visits = [], dataUpdatedAt } = useQuery<TruckVisit[]>({
         queryKey: ['visits', 'display'],
         queryFn: async () => {
             const res = await fetch('/api/display', {
@@ -159,26 +179,19 @@ function DisplayContent() {
         retry: 1,
     });
 
-    // errorUpdatedAt is a timestamp that increments on every new error — unlike isError
-    // which stays `true` and won't re-trigger useEffect on subsequent failures.
-    useEffect(() => {
-        if (errorUpdatedAt > 0) setConnectionErrors(prev => prev + 1);
-    }, [errorUpdatedAt]);
+    // Age of the newest data we managed to fetch. Before the first success we
+    // measure from mount, so a display that never reaches the API still warns
+    // and still reloads.
+    const staleMs = nowTs - (dataUpdatedAt > 0 ? dataUpdatedAt : mountedAt);
+    const isConnectionLost = staleMs >= STALE_WARNING_MS;
+    const secondsUntilReload = Math.max(0, Math.ceil((STALE_RELOAD_MS - staleMs) / 1000));
 
-    // dataUpdatedAt increments on every successful fetch
     useEffect(() => {
-        if (dataUpdatedAt > 0) setConnectionErrors(0);
-    }, [dataUpdatedAt]);
-
-    // Auto-reload after prolonged connection loss (60 seconds)
-    useEffect(() => {
-        if (connectionErrors >= MAX_ERRORS_BEFORE_RELOAD) {
+        if (staleMs >= STALE_RELOAD_MS) {
             console.log('Connection lost for too long, reloading page...');
             window.location.reload();
         }
-    }, [connectionErrors]);
-
-    const isConnectionLost = connectionErrors >= MAX_ERRORS_BEFORE_WARNING;
+    }, [staleMs]);
 
     // Filter for display:
     // 1. CALLED/DOCKED/IN_SERVICE (Active dock assignments) - Top priority
@@ -188,24 +201,16 @@ function DisplayContent() {
         .filter(v => v.status === 'WAITING')
         .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
-    // Flash notification queue system
-    const [currentFlash, setCurrentFlash] = useState<TruckVisit | null>(null);
+    // Flash notification queue. The head of the queue *is* the flash currently on
+    // screen — deriving it instead of mirroring it into a second state variable
+    // removes the pop/show round-trip that needed a cascading render.
     const [flashQueue, setFlashQueue] = useState<TruckVisit[]>([]);
+    const currentFlash = flashQueue[0] ?? null;
     const previousVisitsRef = useRef<TruckVisit[]>([]);
     const shownFlashIdsRef = useRef<Set<string>>(new Set()); // Track already shown flashes
 
-    // Fast language rotation for flash notification (1 second)
-    const [flashLocaleIndex, setFlashLocaleIndex] = useState(0);
-    useEffect(() => {
-        if (!currentFlash) return;
-        const timer = setInterval(() => {
-            setFlashLocaleIndex(i => (i + 1) % locales.length);
-        }, 1000); // 1 second rotation during flash
-        return () => clearInterval(timer);
-    }, [currentFlash, locales.length]);
-
-    // Use fast-rotating locale for flash, normal for rest
-    const flashT = getTranslations(locales[flashLocaleIndex]);
+    // Language of the flash alternates once a second, off the shared 1s tick.
+    const flashT = getTranslations(locales[Math.floor(nowTs / 1000) % locales.length]);
 
     // Detect new CALLED trucks and add to queue
     useEffect(() => {
@@ -238,23 +243,15 @@ function DisplayContent() {
         }
     }, [visits]);
 
-    // Process queue: show next flash when current one ends
+    // Each flash shows for 5 seconds, then the queue advances to the next one.
+    // Keyed on the id, not the object: every poll produces fresh objects, and
+    // depending on those would restart the timer before it ever fired.
+    const currentFlashId = currentFlash?.id;
     useEffect(() => {
-        // If nothing is showing and queue has items, show next
-        if (!currentFlash && flashQueue.length > 0) {
-            const [next, ...rest] = flashQueue;
-            setCurrentFlash(next);
-            setFlashLocaleIndex(0);
-            setFlashQueue(rest);
-        }
-    }, [currentFlash, flashQueue]);
-
-    // Timer to clear current flash after 5 seconds
-    useEffect(() => {
-        if (!currentFlash) return;
-        const timer = setTimeout(() => setCurrentFlash(null), 5000);
+        if (!currentFlashId) return;
+        const timer = setTimeout(() => setFlashQueue(queue => queue.slice(1)), 5000);
         return () => clearTimeout(timer);
-    }, [currentFlash]);
+    }, [currentFlashId]);
 
     // Pagination for small screen if too many items
     const [page, setPage] = useState(0);
@@ -299,7 +296,7 @@ function DisplayContent() {
                         </span>
                     </div>
                     <span className="text-red-300 text-xs">
-                        Auto-reload in {Math.max(0, (MAX_ERRORS_BEFORE_RELOAD - connectionErrors) * 5)}s
+                        Auto-reload in {secondsUntilReload}s
                     </span>
                 </div>
             )}
@@ -382,7 +379,6 @@ function DisplayContent() {
                     const isDocked = visit.status === 'DOCKED';
                     const isLoading = visit.status === 'IN_SERVICE';
                     const isActive = isCalled || isDocked || isLoading;
-                    const globalIdx = (page * itemsPerPage) + idx + 1;
 
                     return (
                         <div
