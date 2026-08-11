@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { StatusBadge, PriorityBadge } from '@/components/queue/StatusBadge';
 import { getAvailableTransitions, VisitStatus, UserRole } from '@/lib/status-machine';
+import { sortVisitsForQueue } from '@/lib/queue-order';
 import {
     Phone,
     MoreVertical,
@@ -186,10 +187,12 @@ export default function QueuePage() {
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     };
 
-    // Group by status and sort
+    // Group by status and sort. Pre-queue columns go by appointment time; WAITING is
+    // the queue itself, so it uses the same order as the public display board —
+    // otherwise the two screens disagree about who is next.
     const planned = visits.filter(v => v.status === 'PLANNED').sort(sortByScheduled);
     const arrived = visits.filter(v => v.status === 'ARRIVED').sort(sortByScheduled);
-    const waiting = visits.filter(v => v.status === 'WAITING').sort(sortByScheduled);
+    const waiting = sortVisitsForQueue(visits.filter(v => v.status === 'WAITING'));
     const called = visits.filter(v => v.status === 'CALLED').sort(sortByScheduled);
     const docked = visits.filter(v => v.status === 'DOCKED').sort(sortByScheduled);
     const inService = visits.filter(v => v.status === 'IN_SERVICE').sort(sortByScheduled);

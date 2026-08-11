@@ -196,10 +196,10 @@ function DisplayContent() {
     // Filter for display:
     // 1. CALLED/DOCKED/IN_SERVICE (Active dock assignments) - Top priority
     // 2. WAITING (Next in queue)
+    // /api/display already returns the queue in order (see lib/queue-order.ts), so
+    // these only split it, they do not re-sort it.
     const activeVisits = visits.filter(v => ['CALLED', 'DOCKED', 'IN_SERVICE'].includes(v.status));
-    const waitingVisits = visits
-        .filter(v => v.status === 'WAITING')
-        .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+    const waitingVisits = visits.filter(v => v.status === 'WAITING');
 
     // Flash notification queue. The head of the queue *is* the flash currently on
     // screen — deriving it instead of mirroring it into a second state variable

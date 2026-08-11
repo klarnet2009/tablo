@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sortVisitsForQueue } from '@/lib/queue-order';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/display - Public API for display board (no auth required)
-export async function GET(request: NextRequest) {
+export async function GET() {
     const visits = await prisma.truckVisit.findMany({
         where: {
             status: {
@@ -18,6 +19,10 @@ export async function GET(request: NextRequest) {
             carrier: true,
             status: true,
             queuePosition: true,
+            // Needed to order the queue; see sortVisitsForQueue for why this cannot
+            // be an ORDER BY.
+            priority: true,
+            createdAt: true,
             assignedDock: {
                 select: {
                     name: true,
@@ -26,12 +31,7 @@ export async function GET(request: NextRequest) {
                 },
             },
         },
-        orderBy: [
-            { priority: 'desc' },
-            { queuePosition: 'asc' },
-            { createdAt: 'asc' },
-        ],
     });
 
-    return NextResponse.json(visits);
+    return NextResponse.json(sortVisitsForQueue(visits));
 }

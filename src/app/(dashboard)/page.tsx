@@ -68,16 +68,8 @@ export default function DashboardPage() {
         { label: 'Busy Docks', value: busyDocks, icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-500/10' },
     ];
 
-    // Queue sorted by priority and position
-    const queue = visits
-        .filter(v => v.status === 'WAITING')
-        .sort((a, b) => {
-            const priorityOrder = { URGENT: 0, SLA: 1, HIGH: 2, NORMAL: 3 };
-            const pa = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 3;
-            const pb = priorityOrder[b.priority as keyof typeof priorityOrder] ?? 3;
-            if (pa !== pb) return pa - pb;
-            return (a.queuePosition || 999) - (b.queuePosition || 999);
-        });
+    // /api/visits already returns the queue in order (see lib/queue-order.ts).
+    const queue = visits.filter(v => v.status === 'WAITING');
 
     return (
         <div className="p-6 space-y-6">

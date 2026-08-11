@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
+import { sortVisitsForQueue } from '@/lib/queue-order';
 import { z } from 'zod';
 
 // Validation schema for creating a visit
@@ -67,14 +68,9 @@ export async function GET(request: NextRequest) {
                 select: { id: true, displayName: true },
             },
         },
-        orderBy: [
-            { priority: 'desc' },
-            { queuePosition: 'asc' },
-            { createdAt: 'asc' },
-        ],
     });
 
-    return NextResponse.json(visits);
+    return NextResponse.json(sortVisitsForQueue(visits));
 }
 
 // POST /api/visits - Create new visit
