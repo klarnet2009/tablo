@@ -24,7 +24,10 @@ export default function LoginPage() {
         });
 
         if (result?.error) {
-            setError('Invalid username or password');
+            // NextAuth reports a rejected credential as 'CredentialsSignin'; anything
+            // else is a specific reason thrown by the provider (account disabled,
+            // expired, not authorized, directory unavailable) and is worth showing.
+            setError(result.error === 'CredentialsSignin' ? 'Invalid username or password' : result.error);
             setLoading(false);
         } else {
             router.push('/');
@@ -92,25 +95,6 @@ export default function LoginPage() {
                             {loading ? 'Signing in...' : 'Sign In'}
                         </button>
                     </form>
-
-                    {/* Demo credentials */}
-                    <div className="mt-6 pt-6 border-t border-slate-700">
-                        <p className="text-xs text-slate-500 text-center mb-2">Demo accounts:</p>
-                        <div className="grid grid-cols-3 gap-2 text-xs text-slate-400">
-                            <div className="text-center">
-                                <div className="font-medium text-slate-300">admin</div>
-                                <div>admin123</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="font-medium text-slate-300">dispatcher</div>
-                                <div>dispatcher123</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="font-medium text-slate-300">security</div>
-                                <div>security123</div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
