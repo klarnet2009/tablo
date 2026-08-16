@@ -71,7 +71,7 @@ export default function RegisterPage() {
             <div className="p-6 max-w-lg mx-auto">
                 <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-8 text-center">
                     <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                    <h2 className="text-2xl font-bold text-white mb-2">Truck Registered!</h2>
+                    <h2 className="text-2xl font-bold text-white mb-2">Truck registered</h2>
                     <p className="text-slate-300 mb-2">
                         Plate: <span className="font-mono font-bold text-green-400">{createdPlate}</span>
                     </p>
@@ -83,13 +83,13 @@ export default function RegisterPage() {
                             onClick={handleReset}
                             className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
                         >
-                            Register Another
+                            Register another
                         </button>
                         <Link
-                            href="/"
+                            href="/queue"
                             className="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
                         >
-                            Go to Dashboard
+                            Go to the queue
                         </Link>
                     </div>
                 </div>
@@ -106,8 +106,8 @@ export default function RegisterPage() {
                         <ArrowLeft className="w-5 h-5 text-slate-400" />
                     </Link>
                     <div>
-                        <h1 className="text-xl md:text-2xl font-bold text-white">Register Truck</h1>
-                        <p className="text-slate-400 text-sm md:text-base">Add a new truck to the queue</p>
+                        <h1 className="text-xl md:text-2xl font-bold text-white">Register a truck</h1>
+                        <p className="text-slate-400 text-sm md:text-base">Check a truck in at the gate</p>
                     </div>
                 </div>
 
@@ -284,7 +284,7 @@ export default function RegisterPage() {
                             {mutation.isPending ? 'Registering...' : 'Register Truck'}
                         </button>
                         <Link
-                            href="/"
+                            href="/queue"
                             className="px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
                         >
                             Cancel

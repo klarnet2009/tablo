@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { Square, Truck, Snowflake, AlertTriangle } from 'lucide-react';
+import { SpinnerBlock } from '@/components/Spinner';
 
 interface Dock {
     id: string;
@@ -66,15 +67,13 @@ export default function DocksPage() {
         <div className="p-4 md:p-6">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-white">Dock Management</h1>
-                    <p className="text-slate-400 text-sm md:text-base">View and manage loading docks</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-white">Docks</h1>
+                    <p className="text-slate-400 text-sm md:text-base">Availability and current occupant of every dock</p>
                 </div>
             </div>
 
             {isLoading ? (
-                <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                </div>
+                <SpinnerBlock label="Loading docks" />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {docks.map(dock => {

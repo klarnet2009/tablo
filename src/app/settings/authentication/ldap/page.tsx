@@ -7,15 +7,14 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { ChevronRight } from 'lucide-react';
 import { LdapWizard } from '@/components/ldap/LdapWizard';
+import { SpinnerBlock } from '@/components/Spinner';
 
 export default function LdapSettingsPage() {
     const { data: session, status } = useSession();
 
     if (status === 'loading') {
         return (
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
+            <SpinnerBlock label="Loading your session" className="min-h-screen bg-slate-900" />
         );
     }
 

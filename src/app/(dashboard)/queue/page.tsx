@@ -7,6 +7,7 @@ import { getAvailableTransitions, VisitStatus, UserRole } from '@/lib/status-mac
 import { sortVisitsForQueue } from '@/lib/queue-order';
 import { Modal } from '@/components/Modal';
 import { Field, controlClass } from '@/components/Field';
+import { SpinnerBlock } from '@/components/Spinner';
 import {
     Play,
     Scale,
@@ -388,8 +389,8 @@ export default function QueuePage() {
         <div className="p-4 md:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-white">Queue Management</h1>
-                    <p className="text-slate-400 text-sm md:text-base">Manage truck queue and dock assignments</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-white">Queue</h1>
+                    <p className="text-slate-400 text-sm md:text-base">Trucks waiting, called and at the docks</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <button
@@ -414,7 +415,7 @@ export default function QueuePage() {
                         className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium text-sm touch-target"
                     >
                         <Calendar className="w-4 h-4" />
-                        <span className="hidden sm:inline">Sync Cargo</span>
+                        <span className="hidden sm:inline">Sync cargo</span>
                     </button>
                     <button
                         onClick={async () => {
@@ -434,7 +435,7 @@ export default function QueuePage() {
                         className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition font-medium text-sm touch-target"
                     >
                         <Trash2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Clear Planned</span>
+                        <span className="hidden sm:inline">Clear planned</span>
                     </button>
                     <button
                         onClick={async () => {
@@ -454,9 +455,7 @@ export default function QueuePage() {
             </div>
 
             {isLoading ? (
-                <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                </div>
+                <SpinnerBlock label="Loading the queue" />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
                     {/* Planned Column */}
@@ -615,7 +614,7 @@ export default function QueuePage() {
                                         ) : (
                                             <Check className="w-4 h-4" />
                                         )}
-                                        Accept as Planned
+                                        Accept as planned
                                     </button>
                                 )}
                             </div>
@@ -623,9 +622,7 @@ export default function QueuePage() {
                     }
                 >
                         {cargoLoading ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                            </div>
+                            <SpinnerBlock label="Loading the cargo schedule" className="py-12" />
                         ) : cargoError ? (
                             <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 text-red-300">
                                 {cargoError}

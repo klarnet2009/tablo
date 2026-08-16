@@ -99,7 +99,7 @@ export default function DashboardPage() {
                 {/* Queue */}
                 <div className="lg:col-span-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
                     <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-white">Current Queue</h2>
+                        <h2 className="text-lg font-semibold text-white">Current queue</h2>
                         <Link
                             href="/queue"
                             className="text-sm text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
@@ -143,7 +143,7 @@ export default function DashboardPage() {
                 {/* Docks */}
                 <div className="bg-slate-800/50 rounded-xl border border-slate-700/50">
                     <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-white">Dock Status</h2>
+                        <h2 className="text-lg font-semibold text-white">Dock status</h2>
                         <Link
                             href="/docks"
                             className="text-sm text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
@@ -182,7 +182,7 @@ export default function DashboardPage() {
             {/* Display Board Preview - Hidden on mobile */}
             <div className="bg-slate-800/50 rounded-xl border border-slate-700/50">
                 <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-white">Public Display Board</h2>
+                    <h2 className="text-lg font-semibold text-white">Driver board</h2>
                     <div className="flex items-center gap-3">
                         <a
                             href="/display"

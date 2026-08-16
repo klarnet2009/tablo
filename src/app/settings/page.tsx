@@ -13,7 +13,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
                     <div>
                         <h1 className="text-xl md:text-2xl font-bold text-white">Settings</h1>
-                        <p className="text-slate-400 text-sm md:text-base">System configuration and preferences</p>
+                        <p className="text-slate-400 text-sm md:text-base">Configuration for this installation</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
