@@ -14,6 +14,7 @@ import {
     User
 } from 'lucide-react';
 import { useState } from 'react';
+import { Modal } from '@/components/Modal';
 
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -63,62 +64,39 @@ export function MobileNav() {
 
             {/* Slide-up Menu */}
             {menuOpen && (
-                <>
-                    {/* Backdrop */}
-                    <div
-                        className="fixed inset-0 bg-black/60 z-50 md:hidden"
-                        onClick={() => setMenuOpen(false)}
-                    />
-                    {/* Menu Panel */}
-                    <div className="fixed bottom-0 left-0 right-0 bg-slate-800 rounded-t-2xl z-50 md:hidden animate-slide-up safe-bottom">
-                        <div className="p-4">
-                            {/* Handle */}
-                            <div className="w-12 h-1 bg-slate-600 rounded-full mx-auto mb-4" />
-
-                            {/* User Info */}
-                            {session && (
-                                <div className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-xl mb-4">
-                                    <div className="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center">
-                                        <User className="w-5 h-5 text-slate-300" />
-                                    </div>
-                                    <div>
-                                        <p className="text-white font-medium">{session.user.displayName}</p>
-                                        <p className="text-sm text-slate-400 capitalize">{session.user.role.toLowerCase()}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Menu Items */}
-                            <div className="space-y-1">
-                                {isAdmin && (
-                                    <Link
-                                        href="/settings"
-                                        onClick={() => setMenuOpen(false)}
-                                        className="flex items-center gap-3 p-3 text-slate-300 hover:bg-slate-700/50 rounded-lg transition"
-                                    >
-                                        <Settings className="w-5 h-5" />
-                                        <span>Settings</span>
-                                    </Link>
-                                )}
-                                <button
-                                    onClick={() => signOut({ callbackUrl: '/login' })}
-                                    className="flex items-center gap-3 p-3 text-red-400 hover:bg-slate-700/50 rounded-lg transition w-full text-left"
-                                >
-                                    <LogOut className="w-5 h-5" />
-                                    <span>Sign Out</span>
-                                </button>
+                <Modal title="Menu" onClose={() => setMenuOpen(false)}>
+                    {session && (
+                        <div className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-xl mb-4">
+                            <div className="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center">
+                                <User className="w-5 h-5 text-slate-300" />
                             </div>
-
-                            {/* Close button */}
-                            <button
-                                onClick={() => setMenuOpen(false)}
-                                className="w-full mt-4 p-3 bg-slate-700 text-slate-300 rounded-xl font-medium"
-                            >
-                                Close
-                            </button>
+                            <div>
+                                <p className="text-white font-medium">{session.user.displayName}</p>
+                                <p className="text-sm text-slate-400 capitalize">{session.user.role.toLowerCase()}</p>
+                            </div>
                         </div>
+                    )}
+
+                    <div className="space-y-1">
+                        {isAdmin && (
+                            <Link
+                                href="/settings"
+                                onClick={() => setMenuOpen(false)}
+                                className="flex items-center gap-3 p-3 text-slate-300 hover:bg-slate-700/50 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <Settings className="w-5 h-5" />
+                                <span>Settings</span>
+                            </Link>
+                        )}
+                        <button
+                            onClick={() => signOut({ callbackUrl: '/login' })}
+                            className="flex items-center gap-3 p-3 text-red-400 hover:bg-slate-700/50 rounded-lg transition w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <LogOut className="w-5 h-5" />
+                            <span>Sign Out</span>
+                        </button>
                     </div>
-                </>
+                </Modal>
             )}
         </>
     );

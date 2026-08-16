@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Truck, AlertCircle } from 'lucide-react';
+import { Field, controlClass } from '@/components/Field';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -53,39 +54,41 @@ export default function LoginPage() {
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {error && (
-                            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                            <div role="alert" className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
                                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                 {error}
                             </div>
                         )}
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Username
-                            </label>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                placeholder="Enter username"
-                                required
-                            />
-                        </div>
+                        <Field label="Username" required>
+                            {props => (
+                                <input
+                                    {...props}
+                                    type="text"
+                                    autoComplete="username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className={controlClass}
+                                    placeholder="Enter username"
+                                    required
+                                />
+                            )}
+                        </Field>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Password
-                            </label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                placeholder="Enter password"
-                                required
-                            />
-                        </div>
+                        <Field label="Password" required>
+                            {props => (
+                                <input
+                                    {...props}
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className={controlClass}
+                                    placeholder="Enter password"
+                                    required
+                                />
+                            )}
+                        </Field>
 
                         <button
                             type="submit"

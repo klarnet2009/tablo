@@ -194,18 +194,17 @@ export default function DashboardPage() {
                         </a>
                     </div>
                 </div>
-                {/* Hide preview iframe on mobile - too small to be useful */}
-                <div className="p-4 hidden md:block">
-                    <div className="relative w-full aspect-[16/9] bg-slate-900 rounded-lg overflow-hidden border border-slate-600">
-                        <iframe
-                            src="/display"
-                            className="w-full h-full pointer-events-none"
-                            title="Display Board Preview"
-                        />
-                        <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={() => window.open('/display', '_blank')} />
-                    </div>
-                    <p className="text-xs text-slate-500 mt-2 text-center">
-                        Click preview or &quot;Open Full Screen&quot; to view on external monitor • No login required
+                {/* Summary rather than an embedded copy of the board: the iframe used to
+                    run a second instance of the display app, with all of its polling, in
+                    every open dashboard. */}
+                <div className="p-4">
+                    <p className="font-mono text-2xl text-slate-100 tracking-wider">
+                        {waiting + inService > 0
+                            ? `${waiting + inService} truck(s) currently on the board`
+                            : 'No trucks on the board'}
+                    </p>
+                    <p className="text-sm text-slate-400 mt-1">
+                        Opens on the yard monitor without a login.
                     </p>
                 </div>
                 <p className="p-4 text-sm text-slate-400 text-center md:hidden">

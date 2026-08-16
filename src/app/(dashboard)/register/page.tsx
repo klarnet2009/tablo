@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Truck, ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import { Field, controlClass } from '@/components/Field';
 
 export default function RegisterPage() {
     const queryClient = useQueryClient();
@@ -113,163 +114,164 @@ export default function RegisterPage() {
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {mutation.error && (
-                        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
+                        <div role="alert" className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
                             {mutation.error.message}
                         </div>
                     )}
 
                     {/* Truck Info */}
                     <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 space-y-4">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                             <Truck className="w-5 h-5" />
-                            Vehicle Information
-                        </h3>
+                            Vehicle information
+                        </h2>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Truck Plate *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.truckPlate}
-                                    onChange={(e) => setForm({ ...form, truckPlate: e.target.value.toUpperCase() })}
-                                    className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white font-mono text-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="AB1234CD"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Trailer Plate
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.trailerPlate}
-                                    onChange={(e) => setForm({ ...form, trailerPlate: e.target.value.toUpperCase() })}
-                                    className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white font-mono placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Optional"
-                                />
-                            </div>
+                            <Field label="Truck plate" required>
+                                {props => (
+                                    <input
+                                        {...props}
+                                        type="text"
+                                        value={form.truckPlate}
+                                        onChange={e => setForm({ ...form, truckPlate: e.target.value.toUpperCase() })}
+                                        className={`${controlClass} font-mono text-lg`}
+                                        placeholder="AB1234CD"
+                                        required
+                                    />
+                                )}
+                            </Field>
+                            <Field label="Trailer plate">
+                                {props => (
+                                    <input
+                                        {...props}
+                                        type="text"
+                                        value={form.trailerPlate}
+                                        onChange={e => setForm({ ...form, trailerPlate: e.target.value.toUpperCase() })}
+                                        className={`${controlClass} font-mono`}
+                                        placeholder="Optional"
+                                    />
+                                )}
+                            </Field>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Load Type *
-                                </label>
-                                <select
-                                    value={form.loadType}
-                                    onChange={(e) => setForm({ ...form, loadType: e.target.value })}
-                                    className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="INBOUND">Inbound (Unload)</option>
-                                    <option value="OUTBOUND">Outbound (Load)</option>
-                                    <option value="MIXED">Mixed</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Priority
-                                </label>
-                                <select
-                                    value={form.priority}
-                                    onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                                    className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="NORMAL">Normal</option>
-                                    <option value="HIGH">High</option>
-                                    <option value="URGENT">Urgent</option>
-                                    <option value="SLA">SLA</option>
-                                </select>
-                            </div>
+                            <Field label="Load type" required>
+                                {props => (
+                                    <select
+                                        {...props}
+                                        value={form.loadType}
+                                        onChange={e => setForm({ ...form, loadType: e.target.value })}
+                                        className={controlClass}
+                                    >
+                                        <option value="INBOUND">Inbound (unload)</option>
+                                        <option value="OUTBOUND">Outbound (load)</option>
+                                        <option value="MIXED">Mixed</option>
+                                    </select>
+                                )}
+                            </Field>
+                            <Field label="Priority">
+                                {props => (
+                                    <select
+                                        {...props}
+                                        value={form.priority}
+                                        onChange={e => setForm({ ...form, priority: e.target.value })}
+                                        className={controlClass}
+                                    >
+                                        <option value="NORMAL">Normal</option>
+                                        <option value="HIGH">High</option>
+                                        <option value="URGENT">Urgent</option>
+                                        <option value="SLA">SLA</option>
+                                    </select>
+                                )}
+                            </Field>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                Scheduled Time
-                            </label>
-                            <input
-                                type="time"
-                                value={form.scheduledAt}
-                                onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-                                className="w-full md:w-48 px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <p className="text-xs text-slate-500 mt-1">Expected arrival time (optional)</p>
-                        </div>
+                        <Field label="Scheduled time" hint="Expected arrival time (optional)">
+                            {props => (
+                                <input
+                                    {...props}
+                                    type="time"
+                                    value={form.scheduledAt}
+                                    onChange={e => setForm({ ...form, scheduledAt: e.target.value })}
+                                    className={`${controlClass} md:w-48`}
+                                />
+                            )}
+                        </Field>
                     </div>
 
                     {/* Carrier & Driver */}
                     <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5 space-y-4">
-                        <h3 className="text-lg font-semibold text-white">Carrier & Driver</h3>
+                        <h2 className="text-lg font-semibold text-white">Carrier and driver</h2>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Carrier / Company
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.carrier}
-                                    onChange={(e) => setForm({ ...form, carrier: e.target.value })}
-                                    className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Transport company name"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Order / Shipment Ref
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.orderRef}
-                                    onChange={(e) => setForm({ ...form, orderRef: e.target.value })}
-                                    className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="PO-12345"
-                                />
-                            </div>
+                            <Field label="Carrier / company">
+                                {props => (
+                                    <input
+                                        {...props}
+                                        type="text"
+                                        value={form.carrier}
+                                        onChange={e => setForm({ ...form, carrier: e.target.value })}
+                                        className={controlClass}
+                                        placeholder="Transport company name"
+                                    />
+                                )}
+                            </Field>
+                            <Field label="Order / shipment ref">
+                                {props => (
+                                    <input
+                                        {...props}
+                                        type="text"
+                                        value={form.orderRef}
+                                        onChange={e => setForm({ ...form, orderRef: e.target.value })}
+                                        className={controlClass}
+                                        placeholder="PO-12345"
+                                    />
+                                )}
+                            </Field>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Driver Name
-                                </label>
-                                <input
-                                    type="text"
-                                    value={form.driverName}
-                                    onChange={(e) => setForm({ ...form, driverName: e.target.value })}
-                                    className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="John Doe"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                    Driver Phone
-                                </label>
-                                <input
-                                    type="tel"
-                                    value={form.driverPhone}
-                                    onChange={(e) => setForm({ ...form, driverPhone: e.target.value })}
-                                    className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder="+371 ..."
-                                />
-                            </div>
+                            <Field label="Driver name">
+                                {props => (
+                                    <input
+                                        {...props}
+                                        type="text"
+                                        value={form.driverName}
+                                        onChange={e => setForm({ ...form, driverName: e.target.value })}
+                                        className={controlClass}
+                                        placeholder="John Doe"
+                                    />
+                                )}
+                            </Field>
+                            <Field label="Driver phone">
+                                {props => (
+                                    <input
+                                        {...props}
+                                        type="tel"
+                                        value={form.driverPhone}
+                                        onChange={e => setForm({ ...form, driverPhone: e.target.value })}
+                                        className={controlClass}
+                                        placeholder="+371 ..."
+                                    />
+                                )}
+                            </Field>
                         </div>
                     </div>
 
                     {/* Notes */}
                     <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-5">
-                        <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                            Notes
-                        </label>
-                        <textarea
-                            value={form.notes}
-                            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                            rows={3}
-                            className="w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                            placeholder="Any special instructions..."
-                        />
+                        <Field label="Notes">
+                            {props => (
+                                <textarea
+                                    {...props}
+                                    value={form.notes}
+                                    onChange={e => setForm({ ...form, notes: e.target.value })}
+                                    rows={3}
+                                    className={`${controlClass} resize-none`}
+                                    placeholder="Any special instructions..."
+                                />
+                            )}
+                        </Field>
                     </div>
 
                     {/* Submit */}

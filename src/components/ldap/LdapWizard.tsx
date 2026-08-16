@@ -400,11 +400,12 @@ export function LdapWizard() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Host */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                <label htmlFor="ldap-host" className="block text-sm font-medium text-slate-300 mb-2">
                                     LDAP Server Host
                                 </label>
                                 <input
                                     type="text"
+                                    id="ldap-host"
                                     value={config.host || ''}
                                     onChange={(e) => updateConfig({ host: e.target.value })}
                                     placeholder="ldap.example.com"
@@ -415,10 +416,11 @@ export function LdapWizard() {
 
                             {/* Connection Mode */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                <label htmlFor="ldap-mode" className="block text-sm font-medium text-slate-300 mb-2">
                                     Connection Mode
                                 </label>
                                 <select
+                                    id="ldap-mode"
                                     value={config.connectionMode || 'LDAP'}
                                     onChange={(e) => handleConnectionModeChange(e.target.value)}
                                     className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
@@ -432,11 +434,12 @@ export function LdapWizard() {
 
                             {/* Port */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                <label htmlFor="ldap-port" className="block text-sm font-medium text-slate-300 mb-2">
                                     Port
                                 </label>
                                 <input
                                     type="number"
+                                    id="ldap-port"
                                     value={config.port || 389}
                                     onChange={(e) => updateConfig({ port: parseInt(e.target.value) || 389 })}
                                     className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
@@ -504,7 +507,7 @@ export function LdapWizard() {
                         <div className="grid grid-cols-1 gap-4">
                             {/* Bind Account - Flexible Input */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                <label htmlFor="ldap-bind-dn" className="block text-sm font-medium text-slate-300 mb-2">
                                     Service Account
                                 </label>
                                 <p className="text-xs text-slate-500 mb-3">
@@ -548,6 +551,7 @@ export function LdapWizard() {
                                         type="text"
                                         value={config.bindDn || ''}
                                         onChange={(e) => updateConfig({ bindDn: e.target.value })}
+                                        id="ldap-bind-dn"
                                         placeholder="CN=svc-ldap,OU=Service Accounts,DC=corp,DC=local"
                                         className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
                                             text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
@@ -556,7 +560,8 @@ export function LdapWizard() {
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            value={config._bindDomain || ''}
+                                            aria-label="Bind domain"
+                                value={config._bindDomain || ''}
                                             onChange={(e) => {
                                                 const domain = e.target.value.toUpperCase();
                                                 updateConfig({
@@ -573,7 +578,8 @@ export function LdapWizard() {
                                         <span className="self-center text-slate-500 text-lg">\</span>
                                         <input
                                             type="text"
-                                            value={config._bindUser || ''}
+                                            aria-label="Bind username"
+                                value={config._bindUser || ''}
                                             onChange={(e) => {
                                                 const user = e.target.value;
                                                 updateConfig({
@@ -593,6 +599,7 @@ export function LdapWizard() {
                                         type="text"
                                         value={config.bindDn || ''}
                                         onChange={(e) => updateConfig({ bindDn: e.target.value })}
+                                        id="ldap-bind-dn"
                                         placeholder="svc-ldap@corp.local"
                                         className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
                                             text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -608,7 +615,7 @@ export function LdapWizard() {
 
                             {/* Bind Password */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                <label htmlFor="ldap-bind-password" className="block text-sm font-medium text-slate-300 mb-2">
                                     Password
                                     {config.hasPassword && (
                                         <span className="ml-2 text-xs text-green-400">(already set)</span>
@@ -616,6 +623,7 @@ export function LdapWizard() {
                                 </label>
                                 <input
                                     type="password"
+                                    id="ldap-bind-password"
                                     value={bindPassword}
                                     onChange={(e) => setBindPassword(e.target.value)}
                                     placeholder={config.hasPassword ? '••••••••' : 'Enter password'}
@@ -679,12 +687,13 @@ export function LdapWizard() {
                     <div className="space-y-6">
                         {/* Base DN */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                            <label htmlFor="ldap-base-dn" className="block text-sm font-medium text-slate-300 mb-2">
                                 Base DN
                             </label>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
+                                    id="ldap-base-dn"
                                     value={config.baseDn || ''}
                                     onChange={(e) => updateConfig({ baseDn: e.target.value })}
                                     placeholder="DC=example,DC=com"
@@ -704,9 +713,9 @@ export function LdapWizard() {
 
                         {/* OU Selection */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                            <h3 className="block text-sm font-medium text-slate-300 mb-2">
                                 Select Organizational Units
-                            </label>
+                            </h3>
                             <p className="text-xs text-slate-500 mb-3">
                                 Choose which OUs to search for users. Leave empty to search entire Base DN.
                             </p>
@@ -735,13 +744,14 @@ export function LdapWizard() {
                     <div className="space-y-6">
                         {/* Filter Template */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                            <label htmlFor="ldap-user-filter" className="block text-sm font-medium text-slate-300 mb-2">
                                 User Search Filter
                             </label>
                             <select
+                                aria-label="User search filter preset"
                                 value={config.userSearchFilter || ''}
                                 onChange={(e) => updateConfig({ userSearchFilter: e.target.value })}
-                                className="w-full px-4 py-2 mb-2 bg-slate-700/50 border border-slate-600 rounded-lg 
+                                className="w-full px-4 py-2 mb-2 bg-slate-700/50 border border-slate-600 rounded-lg
                                     text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 <option value="">Select a preset or enter custom...</option>
@@ -750,6 +760,7 @@ export function LdapWizard() {
                                 ))}
                             </select>
                             <input
+                                id="ldap-user-filter"
                                 type="text"
                                 value={config.userSearchFilter || ''}
                                 onChange={(e) => updateConfig({ userSearchFilter: e.target.value })}
@@ -766,13 +777,14 @@ export function LdapWizard() {
 
                         {/* Test User Lookup */}
                         <div className="pt-4 border-t border-slate-700">
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                            <h3 className="block text-sm font-medium text-slate-300 mb-2">
                                 Test User Lookup
-                            </label>
+                            </h3>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
-                                    value={userTest.username || ''}
+                                    aria-label="Test username"
+                                value={userTest.username || ''}
                                     onChange={(e) => setUserTest(prev => ({ ...prev, username: e.target.value }))}
                                     placeholder="Enter username to test"
                                     className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
@@ -780,7 +792,8 @@ export function LdapWizard() {
                                 />
                                 <input
                                     type="password"
-                                    value={userTest.password || ''}
+                                    aria-label="Test password"
+                                value={userTest.password || ''}
                                     onChange={(e) => setUserTest(prev => ({ ...prev, password: e.target.value }))}
                                     placeholder="Password (optional)"
                                     className="w-40 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
@@ -844,11 +857,12 @@ export function LdapWizard() {
                                 {/* Mode and Default Role */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                                        <label htmlFor="ldap-group-mode" className="block text-sm font-medium text-slate-300 mb-2">
                                             Resolution Mode
                                         </label>
                                         <select
-                                            value={config.groupAuthMode || 'highest_role_wins'}
+                                            id="ldap-group-mode"
+                                    value={config.groupAuthMode || 'highest_role_wins'}
                                             onChange={(e) => updateConfig({ groupAuthMode: e.target.value as LdapConfig['groupAuthMode'] })}
                                             className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
                                                 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -859,11 +873,12 @@ export function LdapWizard() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                                        <label htmlFor="ldap-default-role" className="block text-sm font-medium text-slate-300 mb-2">
                                             Default Role (if no match)
                                         </label>
                                         <select
-                                            value={config.groupAuthDefaultRole || 'SECURITY'}
+                                            id="ldap-default-role"
+                                    value={config.groupAuthDefaultRole || 'SECURITY'}
                                             onChange={(e) => updateConfig({ groupAuthDefaultRole: e.target.value })}
                                             className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
                                                 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -877,9 +892,9 @@ export function LdapWizard() {
 
                                 {/* Role Mapping Editor */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-3">
+                                    <h3 className="block text-sm font-medium text-slate-300 mb-3">
                                         Group → Role Mappings
-                                    </label>
+                                    </h3>
                                     <RoleMappingEditor
                                         rules={groupMappingRules}
                                         onChange={(rules) => updateConfig({ groupMappingRules: JSON.stringify(rules) })}

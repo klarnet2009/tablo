@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react';
 import { StatusBadge, PriorityBadge } from '@/components/queue/StatusBadge';
 import { getAvailableTransitions, VisitStatus, UserRole } from '@/lib/status-machine';
 import { sortVisitsForQueue } from '@/lib/queue-order';
+import { Modal } from '@/components/Modal';
+import { Field, controlClass } from '@/components/Field';
 import {
     Play,
     Pause,
@@ -176,6 +178,58 @@ export default function QueuePage() {
         },
         onError: (error: Error) => alert(error.message),
     });
+
+    const closeDockModal = () => {
+        setShowDockModal(false);
+        setSelectedVisit(null);
+        setReassignMode(false);
+    };
+
+    const importCargo = async () => {
+        setCargoLoading(true);
+        try {
+            const res = await fetch('/api/visits/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cargos: cargoData }),
+            });
+            const result = await res.json();
+            if (result.error) {
+                setCargoError(result.error);
+            } else {
+                setShowCargoModal(false);
+                setCargoData([]);
+                queryClient.invalidateQueries({ queryKey: ['visits'] });
+            }
+        } catch (err) {
+            setCargoError(err instanceof Error ? err.message : 'Failed to import');
+        } finally {
+            setCargoLoading(false);
+        }
+    };
+
+    const saveEdit = async () => {
+        if (!editingVisit) return;
+        setEditSaving(true);
+        try {
+            const res = await fetch(`/api/visits/${editingVisit.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editForm),
+            });
+            if (res.ok) {
+                queryClient.invalidateQueries({ queryKey: ['visits'] });
+                setShowEditModal(false);
+            } else {
+                const body = await res.json().catch(() => ({}));
+                alert(body.error || 'Failed to save changes');
+            }
+        } catch {
+            alert('Failed to save changes');
+        } finally {
+            setEditSaving(false);
+        }
+    };
 
     const handleReassignDock = (visit: TruckVisit) => {
         setSelectedVisit(visit);
@@ -476,12 +530,18 @@ export default function QueuePage() {
 
             {/* Dock Assignment Modal */}
             {showDockModal && selectedVisit && (
-                <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50">
-                    <div className="bg-slate-800 rounded-t-2xl md:rounded-xl border border-slate-700 p-4 md:p-6 w-full md:max-w-md max-h-[90vh] overflow-y-auto animate-slide-up md:animate-none safe-bottom">
-                        <h3 className="text-lg font-semibold text-white mb-4">
-                            {reassignMode ? 'Change Dock' : 'Assign Dock'} for {selectedVisit.truckPlate}
-                        </h3>
-
+                <Modal
+                    title={`${reassignMode ? 'Change dock' : 'Assign dock'} for ${selectedVisit.truckPlate}`}
+                    onClose={closeDockModal}
+                    footer={
+                        <button
+                            onClick={closeDockModal}
+                            className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            Cancel
+                        </button>
+                    }
+                >
                         {/* Scales option for INBOUND visits - always available (multiple trucks can weigh) */}
                         {selectedVisit.loadType === 'INBOUND' && !reassignMode && (() => {
                             const scalesDock = docks.find(d => d.dockType === 'SCALES');
@@ -520,32 +580,45 @@ export default function QueuePage() {
                             </div>
                         )}
 
-                        <div className="flex justify-end">
-                            <button
-                                onClick={() => { setShowDockModal(false); setSelectedVisit(null); setReassignMode(false); }}
-                                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* Cargo Schedule Modal */}
             {showCargoModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50">
-                    <div className="bg-slate-800 rounded-t-2xl md:rounded-xl border border-slate-700 p-4 md:p-6 w-full md:max-w-4xl max-h-[90vh] md:max-h-[80vh] overflow-hidden flex flex-col animate-slide-up md:animate-none safe-bottom">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-white">Cargo Schedule</h3>
-                            <button
-                                onClick={() => setShowCargoModal(false)}
-                                className="text-slate-400 hover:text-white transition"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+                <Modal
+                    title="Cargo schedule"
+                    size="xl"
+                    onClose={() => setShowCargoModal(false)}
+                    footer={
+                        <div className="flex flex-1 justify-between items-center gap-3">
+                            <span className="text-sm text-slate-400">
+                                {cargoData.length === 0 ? 'Nothing scheduled' : `${cargoData.length} cargo(s) found`}
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setShowCargoModal(false)}
+                                    className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    Close
+                                </button>
+                                {cargoData.length > 0 && (
+                                    <button
+                                        onClick={importCargo}
+                                        disabled={cargoLoading}
+                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        {cargoLoading ? (
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Check className="w-4 h-4" />
+                                        )}
+                                        Accept as Planned
+                                    </button>
+                                )}
+                            </div>
                         </div>
-
+                    }
+                >
                         {cargoLoading ? (
                             <div className="flex items-center justify-center py-12">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -595,209 +668,155 @@ export default function QueuePage() {
                             </div>
                         )}
 
-                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-700">
-                            <span className="text-sm text-slate-400">
-                                {cargoData.length} cargo(s) found
-                            </span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setShowCargoModal(false)}
-                                    className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
-                                >
-                                    Close
-                                </button>
-                                {cargoData.length > 0 && (
-                                    <button
-                                        onClick={async () => {
-                                            setCargoLoading(true);
-                                            try {
-                                                const res = await fetch('/api/visits/import', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ cargos: cargoData }),
-                                                });
-                                                const result = await res.json();
-                                                if (result.error) {
-                                                    setCargoError(result.error);
-                                                } else {
-                                                    setShowCargoModal(false);
-                                                    setCargoData([]);
-                                                    queryClient.invalidateQueries({ queryKey: ['visits'] });
-                                                }
-                                            } catch (err) {
-                                                setCargoError(err instanceof Error ? err.message : 'Failed to import');
-                                            } finally {
-                                                setCargoLoading(false);
-                                            }
-                                        }}
-                                        disabled={cargoLoading}
-                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                    >
-                                        {cargoLoading ? (
-                                            <RefreshCw className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Check className="w-4 h-4" />
-                                        )}
-                                        Accept as Planned
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </Modal>
             )}
 
             {/* Edit Visit Modal */}
             {showEditModal && editingVisit && (
-                <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50">
-                    <div className="bg-slate-800 rounded-t-2xl md:rounded-xl shadow-2xl w-full md:max-w-lg max-h-[90vh] overflow-auto animate-slide-up md:animate-none safe-bottom">
-                        <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Pencil className="w-5 h-5" />
-                                Edit Truck
-                            </h2>
+                <Modal
+                    title={`Edit ${editingVisit.truckPlate}`}
+                    size="lg"
+                    onClose={() => setShowEditModal(false)}
+                    footer={
+                        <>
                             <button
                                 onClick={() => setShowEditModal(false)}
-                                className="p-2 hover:bg-slate-700 rounded-lg transition"
+                                className="px-6 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                <X className="w-5 h-5 text-slate-400" />
+                                Cancel
                             </button>
-                        </div>
-                        <div className="p-4 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Truck Plate *</label>
+                            <button
+                                onClick={saveEdit}
+                                disabled={editSaving}
+                                className="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-500 transition disabled:opacity-50 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <Save className="w-4 h-4" />
+                                {editSaving ? 'Saving...' : 'Save changes'}
+                            </button>
+                        </>
+                    }
+                >
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field label="Truck plate" required>
+                                {props => (
                                     <input
+                                        {...props}
                                         type="text"
                                         value={editForm.truckPlate}
-                                        onChange={(e) => setEditForm({ ...editForm, truckPlate: e.target.value.toUpperCase() })}
-                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white font-mono"
+                                        onChange={e => setEditForm({ ...editForm, truckPlate: e.target.value.toUpperCase() })}
+                                        className={`${controlClass} font-mono`}
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Trailer Plate</label>
+                                )}
+                            </Field>
+                            <Field label="Trailer plate">
+                                {props => (
                                     <input
+                                        {...props}
                                         type="text"
                                         value={editForm.trailerPlate}
-                                        onChange={(e) => setEditForm({ ...editForm, trailerPlate: e.target.value.toUpperCase() })}
-                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white font-mono"
+                                        onChange={e => setEditForm({ ...editForm, trailerPlate: e.target.value.toUpperCase() })}
+                                        className={`${controlClass} font-mono`}
                                     />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">Carrier</label>
+                                )}
+                            </Field>
+                        </div>
+
+                        <Field label="Carrier">
+                            {props => (
                                 <input
+                                    {...props}
                                     type="text"
                                     value={editForm.carrier}
-                                    onChange={(e) => setEditForm({ ...editForm, carrier: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                                    onChange={e => setEditForm({ ...editForm, carrier: e.target.value })}
+                                    className={controlClass}
                                 />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Load Type</label>
+                            )}
+                        </Field>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field label="Load type">
+                                {props => (
                                     <select
+                                        {...props}
                                         value={editForm.loadType}
-                                        onChange={(e) => setEditForm({ ...editForm, loadType: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                                        onChange={e => setEditForm({ ...editForm, loadType: e.target.value })}
+                                        className={controlClass}
                                     >
                                         <option value="INBOUND">Inbound</option>
                                         <option value="OUTBOUND">Outbound</option>
                                         <option value="MIXED">Mixed</option>
                                     </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Priority</label>
+                                )}
+                            </Field>
+                            <Field label="Priority">
+                                {props => (
                                     <select
+                                        {...props}
                                         value={editForm.priority}
-                                        onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                                        onChange={e => setEditForm({ ...editForm, priority: e.target.value })}
+                                        className={controlClass}
                                     >
                                         <option value="NORMAL">Normal</option>
                                         <option value="HIGH">High</option>
                                         <option value="URGENT">Urgent</option>
                                         <option value="SLA">SLA</option>
                                     </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Scheduled Time</label>
+                                )}
+                            </Field>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field label="Scheduled time">
+                                {props => (
                                     <input
+                                        {...props}
                                         type="time"
                                         value={editForm.scheduledAt}
-                                        onChange={(e) => setEditForm({ ...editForm, scheduledAt: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                                        onChange={e => setEditForm({ ...editForm, scheduledAt: e.target.value })}
+                                        className={controlClass}
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Order Ref</label>
+                                )}
+                            </Field>
+                            <Field label="Order ref">
+                                {props => (
                                     <input
+                                        {...props}
                                         type="text"
                                         value={editForm.orderRef}
-                                        onChange={(e) => setEditForm({ ...editForm, orderRef: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                                        onChange={e => setEditForm({ ...editForm, orderRef: e.target.value })}
+                                        className={controlClass}
                                     />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Driver Name</label>
+                                )}
+                            </Field>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field label="Driver name">
+                                {props => (
                                     <input
+                                        {...props}
                                         type="text"
                                         value={editForm.driverName}
-                                        onChange={(e) => setEditForm({ ...editForm, driverName: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                                        onChange={e => setEditForm({ ...editForm, driverName: e.target.value })}
+                                        className={controlClass}
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Driver Phone</label>
+                                )}
+                            </Field>
+                            <Field label="Driver phone">
+                                {props => (
                                     <input
-                                        type="text"
+                                        {...props}
+                                        type="tel"
                                         value={editForm.driverPhone}
-                                        onChange={(e) => setEditForm({ ...editForm, driverPhone: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                                        onChange={e => setEditForm({ ...editForm, driverPhone: e.target.value })}
+                                        className={controlClass}
                                     />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 p-4 border-t border-slate-700">
-                            <button
-                                onClick={async () => {
-                                    setEditSaving(true);
-                                    try {
-                                        const res = await fetch(`/api/visits/${editingVisit.id}`, {
-                                            method: 'PATCH',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify(editForm),
-                                        });
-                                        if (res.ok) {
-                                            queryClient.invalidateQueries({ queryKey: ['visits'] });
-                                            setShowEditModal(false);
-                                        } else {
-                                            alert('Failed to save changes');
-                                        }
-                                    } catch {
-                                        alert('Failed to save changes');
-                                    } finally {
-                                        setEditSaving(false);
-                                    }
-                                }}
-                                disabled={editSaving}
-                                className="flex-1 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                <Save className="w-4 h-4" />
-                                {editSaving ? 'Saving...' : 'Save Changes'}
-                            </button>
-                            <button
-                                onClick={() => setShowEditModal(false)}
-                                className="px-6 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
-                            >
-                                Cancel
-                            </button>
+                                )}
+                            </Field>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
         </div>
     );
