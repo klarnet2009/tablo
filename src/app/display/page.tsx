@@ -137,7 +137,11 @@ function DisplayContent() {
             }
         };
 
-        const timer = setInterval(pollTrigger, 2000); // Poll every 2 seconds
+        // 10s, not the 2s this used to run at: that was 30 requests a minute —
+        // 43,200 a day per screen — to watch a flag a dispatcher touches a few
+        // times a day. Ten seconds is still well inside "press the button, look up
+        // at the board".
+        const timer = setInterval(pollTrigger, 10000);
         return () => clearInterval(timer);
     }, [showParkingWarning]);
 
