@@ -119,22 +119,26 @@ body {
   animation: periodic-blink 20s steps(1) infinite;
 }
 
-/* Fast blinking for warning banner */
+/* Parking warning banner.
+   Was a 0.3s cycle — 3.33 flashes per second, over the "no more than three in any
+   one second" threshold, on a screen people look at for minutes at a time. Slowed
+   to 1 Hz and softened, so it still reads as an alert without competing with the
+   call flash, which is the board's one authored moment. */
 @keyframes blink-fast {
 
   0%,
-  50% {
+  60% {
     opacity: 1;
   }
 
-  51%,
+  61%,
   100% {
-    opacity: 0.7;
+    opacity: 0.75;
   }
 }
 
 .animate-blink-fast {
-  animation: blink-fast 0.3s steps(1) infinite;
+  animation: blink-fast 1s steps(1) infinite;
 }
 
 /* Scrolling text for warning banner */
@@ -152,7 +156,10 @@ body {
   animation: scroll-warning 10s linear infinite;
 }
 
-/* Sharp continuous blink - starts immediately */
+/* Dock number inside the call flash: the board's focal moment.
+   2 Hz, under the flash threshold. Floors at 0.3 rather than 0 — a number that
+   disappears completely reads as a broken panel, not as urgency, and the driver
+   needs to be able to read it at any instant. */
 @keyframes sharp-blink {
 
   0%,
@@ -162,7 +169,7 @@ body {
 
   50%,
   100% {
-    opacity: 0;
+    opacity: 0.3;
   }
 }
 
@@ -212,4 +219,42 @@ body {
 
 .animate-slide-down {
   animation: slide-down 0.2s ease-in;
+}
+
+/* Reduced motion.
+   Deliberately not a blanket `animation: none` kill: the call flash, the dock
+   number and the parking warning carry information, so they stay — as steady
+   colour instead of movement. What goes is the looping decoration and the
+   spatial travel. */
+@media (prefers-reduced-motion: reduce) {
+
+  .animate-pulse-slow,
+  .animate-blink-fast,
+  .animate-sharp-blink,
+  .animate-periodic-blink {
+    animation: none;
+    opacity: 1;
+  }
+
+  /* The ticker duplicates its text so the scroll can loop seamlessly. With the
+     scroll stopped, clip to the first copy instead of showing the seam. */
+  .animate-scroll-warning,
+  .marquee-text {
+    animation: none;
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Panels appear in place instead of travelling up the screen. */
+  .animate-slide-up,
+  .animate-slide-down {
+    animation: none;
+  }
+
+  /* Deliberately left alone: `animate-spin` on loading indicators, and colour and
+     opacity transitions on hover/focus. Those are feedback, not travel, and a
+     blanket kill of them is what makes a reduced-motion pass feel broken. */
 }
