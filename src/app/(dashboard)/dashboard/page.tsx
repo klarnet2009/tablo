@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { Truck, Clock, Square, TrendingUp } from 'lucide-react';
+import { Truck, Clock, Square, TrendingUp, ChevronRight, ExternalLink } from 'lucide-react';
 import { StatusBadge, PriorityBadge } from '@/components/queue/StatusBadge';
 import Link from 'next/link';
 
@@ -102,9 +102,9 @@ export default function DashboardPage() {
                         <h2 className="text-lg font-semibold text-white">Current Queue</h2>
                         <Link
                             href="/queue"
-                            className="text-sm text-blue-400 hover:text-blue-300"
+                            className="text-sm text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
                         >
-                            View All →
+                            View all <ChevronRight className="w-4 h-4" />
                         </Link>
                     </div>
                     <div className="divide-y divide-slate-700/50">
@@ -146,9 +146,9 @@ export default function DashboardPage() {
                         <h2 className="text-lg font-semibold text-white">Dock Status</h2>
                         <Link
                             href="/docks"
-                            className="text-sm text-blue-400 hover:text-blue-300"
+                            className="text-sm text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
                         >
-                            Manage →
+                            Manage <ChevronRight className="w-4 h-4" />
                         </Link>
                     </div>
                     <div className="p-4 grid grid-cols-2 gap-3">
@@ -190,7 +190,7 @@ export default function DashboardPage() {
                             rel="noopener noreferrer"
                             className="text-sm bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition flex items-center gap-1 touch-target"
                         >
-                            Open Full Screen ↗
+                            Open full screen <ExternalLink className="w-4 h-4" />
                         </a>
                     </div>
                 </div>

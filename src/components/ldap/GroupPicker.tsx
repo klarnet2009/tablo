@@ -120,7 +120,7 @@ export function GroupPicker({ value, onChange, placeholder = 'Search for a group
                     {!disabled && (
                         <button
                             onClick={handleClear}
-                            className="p-1 hover:bg-slate-600 rounded text-slate-400 hover:text-white"
+                            className="w-6 h-6 flex items-center justify-center hover:bg-slate-600 rounded text-slate-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <X className="w-4 h-4" />
                         </button>

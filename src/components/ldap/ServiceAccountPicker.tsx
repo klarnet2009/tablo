@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, X, User, Key } from 'lucide-react';
+import { Search, X, User, Key, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface DirectoryUser {
     dn: string;
@@ -146,9 +146,13 @@ export function ServiceAccountPicker({
                 <button
                     type="button"
                     onClick={toggleManualMode}
-                    className="text-xs text-slate-400 hover:text-blue-400 transition"
+                    className="text-xs text-slate-400 hover:text-blue-400 transition inline-flex items-center gap-1"
                 >
-                    {manualMode ? '← Search directory' : 'Enter manually →'}
+                    {manualMode ? (
+                        <><ArrowLeft className="w-3 h-3" /> Search directory</>
+                    ) : (
+                        <>Enter manually <ArrowRight className="w-3 h-3" /></>
+                    )}
                 </button>
             </div>
 
@@ -184,7 +188,7 @@ export function ServiceAccountPicker({
                     {!disabled && (
                         <button
                             onClick={handleClear}
-                            className="p-1 hover:bg-slate-600 rounded text-slate-400 hover:text-white"
+                            className="w-6 h-6 flex items-center justify-center hover:bg-slate-600 rounded text-slate-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <X className="w-4 h-4" />
                         </button>

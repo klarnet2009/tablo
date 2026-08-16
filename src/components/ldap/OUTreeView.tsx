@@ -177,7 +177,7 @@ export function OUTreeView({ baseDn, selectedOUs, onSelectionChange, disabled, c
                     {node.hasChildren ? (
                         <button
                             onClick={(e) => { e.stopPropagation(); toggleNode(node.dn); }}
-                            className="p-0.5 hover:bg-slate-600 rounded"
+                            className="w-6 h-6 flex items-center justify-center hover:bg-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                             disabled={disabled}
                         >
                             {node.isLoading ? (

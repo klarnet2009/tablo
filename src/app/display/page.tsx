@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Thermometer, Scale } from 'lucide-react';
+import { Thermometer, Scale, TriangleAlert } from 'lucide-react';
 import Image from 'next/image';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
 
@@ -283,8 +283,12 @@ function DisplayContent() {
             {showParkingWarning && !currentFlash && (
                 <div className="absolute inset-x-0 top-0 z-30 bg-black h-12 flex items-center overflow-hidden">
                     <div className={`bg-red-600 w-full h-full flex items-center overflow-hidden ${warningBlinkPhase ? 'animate-blink-fast' : ''}`}>
+                        {/* The icon stays put while the message scrolls: an emoji in the
+                            scrolling run rendered in the OS emoji font, at whatever weight
+                            and colour that font decided. */}
+                        <TriangleAlert className="w-7 h-7 shrink-0 mx-2 text-white" aria-hidden="true" />
                         <div className="whitespace-nowrap animate-scroll-warning text-white font-black text-xl uppercase tracking-wider">
-                            ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️
+                            {Array.from({ length: 6 }, () => warningT.parkingWarning).join('  •  ')}
                         </div>
                     </div>
                 </div>

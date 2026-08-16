@@ -9,6 +9,8 @@ import { Modal } from '@/components/Modal';
 import { Field, controlClass } from '@/components/Field';
 import {
     Play,
+    Scale,
+    TriangleAlert,
     Pause,
     X,
     CheckCircle,
@@ -289,10 +291,10 @@ export default function QueuePage() {
                                 });
                                 setShowEditModal(true);
                             }}
-                            className="p-1.5 rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-400 hover:text-white transition"
-                            title="Edit truck info"
+                            className="touch-target flex items-center justify-center rounded-lg bg-slate-700/50 hover:bg-slate-600 text-slate-400 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label={`Edit ${visit.truckPlate}`}
                         >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-4 h-4" />
                         </button>}
                         <StatusBadge status={visit.status} />
                     </div>
@@ -319,7 +321,7 @@ export default function QueuePage() {
                                     className="text-blue-400 font-medium hover:text-blue-300 hover:underline flex items-center gap-1"
                                 >
                                     {visit.assignedDock.name}
-                                    <span className="text-xs">✎</span>
+                                    <Pencil className="w-3 h-3" />
                                 </button>
                             ) : (
                                 <span className="text-blue-400 font-medium">{visit.assignedDock.name}</span>
@@ -443,9 +445,10 @@ export default function QueuePage() {
                             }
                         }}
                         className="flex items-center gap-2 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition font-medium text-sm touch-target"
-                        title="Show parking warning on display"
+                        aria-label="Show the parking warning on the display board"
                     >
-                        ⚠️ <span className="hidden sm:inline">Warning</span>
+                        <TriangleAlert className="w-4 h-4" />
+                        <span className="hidden sm:inline">Warning</span>
                     </button>
                 </div>
             </div>
@@ -553,7 +556,7 @@ export default function QueuePage() {
                                         disabled={statusMutation.isPending || reassignMutation.isPending}
                                         className="w-full p-4 bg-amber-900/50 border border-amber-600 rounded-lg hover:bg-amber-800/50 hover:border-amber-500 transition text-left disabled:opacity-50"
                                     >
-                                        <div className="font-bold text-amber-400">⚖ Scales</div>
+                                        <div className="font-bold text-amber-400 flex items-center gap-2"><Scale className="w-4 h-4" /> Scales</div>
                                         <div className="text-xs text-amber-300">Send to weighing station</div>
                                     </button>
                                 </div>

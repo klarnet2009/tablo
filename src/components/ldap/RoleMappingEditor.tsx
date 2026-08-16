@@ -105,8 +105,8 @@ export function RoleMappingEditor({ rules, onChange, availableRoles, disabled }:
                             <button
                                 onClick={() => handleRemoveRule(index)}
                                 disabled={disabled}
-                                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded 
-                                    disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded
+                                    disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
