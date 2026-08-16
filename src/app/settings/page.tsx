@@ -48,7 +48,7 @@ export default function SettingsPage() {
                                     <p className="text-sm text-slate-400">Manage users and roles</p>
                                 </div>
                             </div>
-                            <p className="text-slate-500 text-sm">Coming soon...</p>
+                            <p className="text-slate-400 text-sm">Coming soon...</p>
                         </div>
 
                         <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4 md:p-6">
@@ -59,7 +59,7 @@ export default function SettingsPage() {
                                     <p className="text-sm text-slate-400">Backup and maintenance</p>
                                 </div>
                             </div>
-                            <p className="text-slate-500 text-sm">Coming soon...</p>
+                            <p className="text-slate-400 text-sm">Coming soon...</p>
                         </div>
 
                         <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4 md:p-6">
@@ -70,7 +70,7 @@ export default function SettingsPage() {
                                     <p className="text-sm text-slate-400">Alert preferences</p>
                                 </div>
                             </div>
-                            <p className="text-slate-500 text-sm">Coming soon...</p>
+                            <p className="text-slate-400 text-sm">Coming soon...</p>
                         </div>
 
                         <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4 md:p-6">
@@ -81,12 +81,12 @@ export default function SettingsPage() {
                                     <p className="text-sm text-slate-400">General settings</p>
                                 </div>
                             </div>
-                            <p className="text-slate-500 text-sm">Coming soon...</p>
+                            <p className="text-slate-400 text-sm">Coming soon...</p>
                         </div>
                     </div>
 
                     {/* Version Info */}
-                    <div className="text-center text-slate-500 text-sm pt-8">
+                    <div className="text-center text-slate-400 text-sm pt-8">
                         Tablo Queue Management System v1.0.0
                     </div>
         </div>

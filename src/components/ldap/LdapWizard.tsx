@@ -510,7 +510,7 @@ export function LdapWizard() {
                                 <label htmlFor="ldap-bind-dn" className="block text-sm font-medium text-slate-300 mb-2">
                                     Service Account
                                 </label>
-                                <p className="text-xs text-slate-500 mb-3">
+                                <p className="text-xs text-slate-400 mb-3">
                                     Enter the account that will be used to query the directory. You can use any of these formats:
                                 </p>
 
@@ -575,7 +575,7 @@ export function LdapWizard() {
                                             className="w-32 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
                                                 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                                         />
-                                        <span className="self-center text-slate-500 text-lg">\</span>
+                                        <span className="self-center text-slate-400 text-lg">\</span>
                                         <input
                                             type="text"
                                             aria-label="Bind username"
@@ -607,7 +607,7 @@ export function LdapWizard() {
                                 )}
 
                                 {config.bindDn && (
-                                    <p className="mt-2 text-xs text-slate-500">
+                                    <p className="mt-2 text-xs text-slate-400">
                                         Will bind as: <code className="text-blue-400">{config.bindDn}</code>
                                     </p>
                                 )}
@@ -666,13 +666,13 @@ export function LdapWizard() {
                                     {bindTest.status === 'success' && bindTest.accountInfo && (
                                         <div className="mt-2 pl-6 space-y-1 text-xs text-slate-400">
                                             {bindTest.accountInfo.displayName && (
-                                                <div><span className="text-slate-500">Display Name:</span> {bindTest.accountInfo.displayName}</div>
+                                                <div><span className="text-slate-400">Display Name:</span> {bindTest.accountInfo.displayName}</div>
                                             )}
                                             {bindTest.accountInfo.sAMAccountName && (
-                                                <div><span className="text-slate-500">sAMAccountName:</span> {bindTest.accountInfo.sAMAccountName}</div>
+                                                <div><span className="text-slate-400">sAMAccountName:</span> {bindTest.accountInfo.sAMAccountName}</div>
                                             )}
                                             {bindTest.accountInfo.userPrincipalName && (
-                                                <div><span className="text-slate-500">UPN:</span> {bindTest.accountInfo.userPrincipalName}</div>
+                                                <div><span className="text-slate-400">UPN:</span> {bindTest.accountInfo.userPrincipalName}</div>
                                             )}
                                         </div>
                                     )}
@@ -716,7 +716,7 @@ export function LdapWizard() {
                             <h3 className="block text-sm font-medium text-slate-300 mb-2">
                                 Select Organizational Units
                             </h3>
-                            <p className="text-xs text-slate-500 mb-3">
+                            <p className="text-xs text-slate-400 mb-3">
                                 Choose which OUs to search for users. Leave empty to search entire Base DN.
                             </p>
                             <OUTreeView
@@ -768,7 +768,7 @@ export function LdapWizard() {
                                 className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg 
                                     text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                             />
-                            <p className="mt-2 text-xs text-slate-500">
+                            <p className="mt-2 text-xs text-slate-400">
                                 Preview for &quot;alex&quot;: <code className="text-blue-400">
                                     {(config.userSearchFilter || '').replace('{{username}}', 'alex')}
                                 </code>
@@ -919,7 +919,7 @@ export function LdapWizard() {
                             <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
                                 <div className="text-sm font-medium text-slate-400 mb-2">Connection</div>
                                 <div className="text-white">{config.host}:{config.port}</div>
-                                <div className="text-xs text-slate-500">{config.connectionMode}</div>
+                                <div className="text-xs text-slate-400">{config.connectionMode}</div>
                             </div>
 
                             <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
@@ -930,7 +930,7 @@ export function LdapWizard() {
                             <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
                                 <div className="text-sm font-medium text-slate-400 mb-2">Base DN</div>
                                 <div className="text-white">{config.baseDn || 'Not set'}</div>
-                                <div className="text-xs text-slate-500">
+                                <div className="text-xs text-slate-400">
                                     {selectedOUs.length > 0 ? `${selectedOUs.length} OU(s) selected` : 'All OUs'}
                                 </div>
                             </div>
@@ -940,7 +940,7 @@ export function LdapWizard() {
                                 <div className="text-white">
                                     {config.groupAuthEnabled ? 'Group-based' : 'Disabled'}
                                 </div>
-                                <div className="text-xs text-slate-500">
+                                <div className="text-xs text-slate-400">
                                     {config.groupAuthEnabled
                                         ? `${groupMappingRules.length} rule(s), default: ${config.groupAuthDefaultRole}`
                                         : `All users get: ${config.groupAuthDefaultRole || 'SECURITY'}`}
@@ -988,7 +988,7 @@ export function LdapWizard() {
                             </label>
                             <div>
                                 <span className="text-sm text-slate-300">Disable local login fallback</span>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs text-slate-400">
                                     Warning: If disabled, users cannot log in if LDAP is unreachable
                                 </p>
                             </div>
@@ -1050,7 +1050,7 @@ export function LdapWizard() {
                                     ? 'text-blue-400'
                                     : isCompleted
                                         ? 'text-green-400 hover:bg-slate-700/50'
-                                        : 'text-slate-500 hover:bg-slate-700/50 hover:text-slate-300'}`}
+                                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-300'}`}
                         >
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center
                                 ${isActive

@@ -92,26 +92,32 @@ export function getTimestampField(status: VisitStatus): string | null {
     return fieldMap[status];
 }
 
-// Status display info
+// Status display info.
+//
+// Tinted for the dark surfaces this app actually renders on. These used to be a
+// light-theme set (bg-*-100 with text-*-600) — legible in itself, but the one
+// place in the product where the palette came from a different theme, so status
+// chips read as pasted onto the dark cards rather than belonging to them.
+// Every pair below is >= 6.8:1 against the card surface.
 export const statusInfo: Record<VisitStatus, { label: string; color: string; bgColor: string }> = {
-    PLANNED: { label: 'Planned', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
-    NEW: { label: 'New', color: 'text-gray-600', bgColor: 'bg-gray-100' },
-    ARRIVED: { label: 'Arrived', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-    WAITING: { label: 'Waiting', color: 'text-yellow-600', bgColor: 'bg-yellow-100' },
-    CALLED: { label: 'Called', color: 'text-orange-600', bgColor: 'bg-orange-100' },
-    DOCKED: { label: 'At Dock', color: 'text-purple-600', bgColor: 'bg-purple-100' },
-    IN_SERVICE: { label: 'Loading', color: 'text-indigo-600', bgColor: 'bg-indigo-100' },
-    DONE: { label: 'Done', color: 'text-green-600', bgColor: 'bg-green-100' },
-    LEFT: { label: 'Left', color: 'text-gray-500', bgColor: 'bg-gray-50' },
-    CANCELLED: { label: 'Cancelled', color: 'text-red-600', bgColor: 'bg-red-100' },
-    NO_SHOW: { label: 'No Show', color: 'text-red-600', bgColor: 'bg-red-100' },
-    HOLD: { label: 'On Hold', color: 'text-amber-600', bgColor: 'bg-amber-100' },
+    PLANNED: { label: 'Planned', color: 'text-cyan-300', bgColor: 'bg-cyan-500/15' },
+    NEW: { label: 'New', color: 'text-slate-300', bgColor: 'bg-slate-500/15' },
+    ARRIVED: { label: 'Arrived', color: 'text-blue-300', bgColor: 'bg-blue-500/15' },
+    WAITING: { label: 'Waiting', color: 'text-yellow-300', bgColor: 'bg-yellow-500/15' },
+    CALLED: { label: 'Called', color: 'text-orange-300', bgColor: 'bg-orange-500/15' },
+    DOCKED: { label: 'At Dock', color: 'text-purple-300', bgColor: 'bg-purple-500/15' },
+    IN_SERVICE: { label: 'Loading', color: 'text-indigo-300', bgColor: 'bg-indigo-500/15' },
+    DONE: { label: 'Done', color: 'text-green-300', bgColor: 'bg-green-500/15' },
+    LEFT: { label: 'Left', color: 'text-slate-400', bgColor: 'bg-slate-500/10' },
+    CANCELLED: { label: 'Cancelled', color: 'text-red-300', bgColor: 'bg-red-500/15' },
+    NO_SHOW: { label: 'No Show', color: 'text-red-300', bgColor: 'bg-red-500/15' },
+    HOLD: { label: 'On Hold', color: 'text-amber-300', bgColor: 'bg-amber-500/15' },
 };
 
 // Priority display info
 export const priorityInfo: Record<string, { label: string; color: string; bgColor: string }> = {
-    NORMAL: { label: 'Normal', color: 'text-gray-600', bgColor: 'bg-gray-100' },
-    HIGH: { label: 'High', color: 'text-orange-600', bgColor: 'bg-orange-100' },
-    URGENT: { label: 'Urgent', color: 'text-red-600', bgColor: 'bg-red-100' },
-    SLA: { label: 'SLA', color: 'text-purple-600', bgColor: 'bg-purple-100' },
+    NORMAL: { label: 'Normal', color: 'text-slate-300', bgColor: 'bg-slate-500/15' },
+    HIGH: { label: 'High', color: 'text-orange-300', bgColor: 'bg-orange-500/15' },
+    URGENT: { label: 'Urgent', color: 'text-red-300', bgColor: 'bg-red-500/15' },
+    SLA: { label: 'SLA', color: 'text-purple-300', bgColor: 'bg-purple-500/15' },
 };

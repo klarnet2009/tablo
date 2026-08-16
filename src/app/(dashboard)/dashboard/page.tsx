@@ -130,7 +130,7 @@ export default function DashboardPage() {
                                     </div>
                                     <div className="text-right">
                                         <StatusBadge status={visit.status} size="sm" />
-                                        <p className="text-xs text-slate-500 mt-1">
+                                        <p className="text-xs text-slate-400 mt-1">
                                             {visit.loadType}
                                         </p>
                                     </div>

@@ -465,7 +465,7 @@ export default function QueuePage() {
                         <div className="space-y-3">
                             {planned.map(renderVisitCard)}
                             {planned.length === 0 && (
-                                <div className="text-center py-8 text-slate-500">No planned visits</div>
+                                <div className="text-center py-8 text-slate-400">No planned visits</div>
                             )}
                         </div>
                     </div>
@@ -479,7 +479,7 @@ export default function QueuePage() {
                         <div className="space-y-3">
                             {arrived.map(renderVisitCard)}
                             {arrived.length === 0 && (
-                                <div className="text-center py-8 text-slate-500">No trucks arrived</div>
+                                <div className="text-center py-8 text-slate-400">No trucks arrived</div>
                             )}
                         </div>
                     </div>
@@ -493,7 +493,7 @@ export default function QueuePage() {
                         <div className="space-y-3">
                             {waiting.map(renderVisitCard)}
                             {waiting.length === 0 && (
-                                <div className="text-center py-8 text-slate-500">No trucks waiting</div>
+                                <div className="text-center py-8 text-slate-400">No trucks waiting</div>
                             )}
                         </div>
                     </div>
@@ -507,7 +507,7 @@ export default function QueuePage() {
                         <div className="space-y-3">
                             {[...called, ...docked, ...inService].map(renderVisitCard)}
                             {called.length + docked.length + inService.length === 0 && (
-                                <div className="text-center py-8 text-slate-500">No trucks in progress</div>
+                                <div className="text-center py-8 text-slate-400">No trucks in progress</div>
                             )}
                         </div>
                     </div>
@@ -521,7 +521,7 @@ export default function QueuePage() {
                         <div className="space-y-3">
                             {onHold.map(renderVisitCard)}
                             {onHold.length === 0 && (
-                                <div className="text-center py-8 text-slate-500">No trucks on hold</div>
+                                <div className="text-center py-8 text-slate-400">No trucks on hold</div>
                             )}
                         </div>
                     </div>

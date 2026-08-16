@@ -60,7 +60,7 @@ export function RoleMappingEditor({ rules, onChange, availableRoles, disabled }:
                             key={index}
                             className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50"
                         >
-                            <GripVertical className="w-4 h-4 text-slate-500" />
+                            <GripVertical className="w-4 h-4 text-slate-400" />
 
                             {/* Group */}
                             <div className="flex-1 min-w-0">
@@ -73,7 +73,7 @@ export function RoleMappingEditor({ rules, onChange, availableRoles, disabled }:
                             </div>
 
                             {/* Arrow */}
-                            <div className="text-slate-500">→</div>
+                            <div className="text-slate-400">→</div>
 
                             {/* Role select */}
                             <select
@@ -129,7 +129,7 @@ export function RoleMappingEditor({ rules, onChange, availableRoles, disabled }:
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <span className="text-slate-500">→</span>
+                        <span className="text-slate-400">→</span>
 
                         <select
                             value={newRule.role}
@@ -170,7 +170,7 @@ export function RoleMappingEditor({ rules, onChange, availableRoles, disabled }:
             </div>
 
             {/* Help text */}
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-slate-400">
                 Priority determines which rule wins when a user is in multiple groups (higher number = higher priority).
             </div>
         </div>

@@ -177,7 +177,7 @@ export function GroupPicker({ value, onChange, placeholder = 'Search for a group
                                     {group.dn}
                                 </div>
                                 {group.description && (
-                                    <div className="text-xs text-slate-500 truncate">
+                                    <div className="text-xs text-slate-400 truncate">
                                         {group.description}
                                     </div>
                                 )}

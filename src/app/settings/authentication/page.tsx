@@ -57,7 +57,7 @@ export default function AuthenticationSettingsPage() {
 
                     {/* Future providers placeholder */}
                     <div className="bg-slate-800/30 rounded-xl border border-dashed border-slate-700/50 p-6">
-                        <div className="text-center text-slate-500">
+                        <div className="text-center text-slate-400">
                             <p className="text-sm">More authentication providers coming soon...</p>
                             <p className="text-xs mt-1">OAuth 2.0, SAML, etc.</p>
                         </div>

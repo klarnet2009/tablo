@@ -127,7 +127,7 @@ export function UserAccessPreview({ disabled }: UserAccessPreviewProps) {
                                 {result.user.mail && (
                                     <div className="text-sm text-slate-400">{result.user.mail}</div>
                                 )}
-                                <div className="text-xs text-slate-500 truncate" title={result.user.dn}>
+                                <div className="text-xs text-slate-400 truncate" title={result.user.dn}>
                                     {result.user.dn}
                                 </div>
                             </div>
@@ -211,12 +211,12 @@ export function UserAccessPreview({ disabled }: UserAccessPreviewProps) {
                                             <div key={i} className="flex items-center gap-2 text-sm">
                                                 <CheckCircle className="w-4 h-4 text-green-400" />
                                                 <span className="text-slate-300">{extractCN(rule.groupDn)}</span>
-                                                <span className="text-slate-500">→</span>
+                                                <span className="text-slate-400">→</span>
                                                 <span className={`px-1.5 py-0.5 rounded text-xs ${getRoleColor(rule.role)}`}>
                                                     {rule.role}
                                                 </span>
                                                 {rule.priority !== undefined && rule.priority > 0 && (
-                                                    <span className="text-xs text-slate-500">(priority: {rule.priority})</span>
+                                                    <span className="text-xs text-slate-400">(priority: {rule.priority})</span>
                                                 )}
                                             </div>
                                         ))}

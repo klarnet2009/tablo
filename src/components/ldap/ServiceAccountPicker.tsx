@@ -165,7 +165,7 @@ export function ServiceAccountPicker({
                             text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 
                             disabled:opacity-50 disabled:cursor-not-allowed font-mono text-sm"
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-400">
                         Enter the full Distinguished Name of the service account
                     </p>
                 </div>
@@ -253,7 +253,7 @@ export function ServiceAccountPicker({
 
             {/* Helper text */}
             {!manualMode && !selectedAccount && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400">
                     Search for a service account in your directory, or <button
                         onClick={toggleManualMode}
                         className="text-blue-400 hover:underline"

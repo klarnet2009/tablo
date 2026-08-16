@@ -368,7 +368,7 @@ function DisplayContent() {
             {/* Main Content Table - Optimized for readability from distance */}
             <div className="flex-1 flex flex-col gap-1">
                 {/* Table Header */}
-                <div className="grid grid-cols-8 gap-2 text-xs text-slate-500 font-bold uppercase px-2">
+                <div className="grid grid-cols-8 gap-2 text-xs text-slate-400 font-bold uppercase px-2">
                     <div className="col-span-6">{t.plateNumber}</div>
                     <div className="col-span-2 text-right">{t.dockStatus}</div>
                 </div>
