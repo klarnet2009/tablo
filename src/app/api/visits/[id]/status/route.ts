@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
+import { claimDock, releaseDock } from '@/lib/docks';
 import {
     isValidTransition,
     canUserTransition,
@@ -27,10 +27,9 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const guard = await requireRole();
+    if (!guard.ok) return guard.response;
+    const session = guard.session;
 
     const { id } = await params;
 
@@ -93,26 +92,9 @@ export async function PATCH(
             }
 
             if (dockId) {
-                // Check if dock is available
                 const dock = await prisma.dock.findUnique({ where: { id: dockId } });
                 if (!dock) {
                     return NextResponse.json({ error: 'Dock not found' }, { status: 404 });
-                }
-                if (dock.status === 'BUSY' && dock.dockType !== 'SCALES') {
-                    // Check if it's busy with another visit (but allow multiple for SCALES)
-                    const busyVisit = await prisma.truckVisit.findFirst({
-                        where: {
-                            assignedDockId: dockId,
-                            status: { in: ['CALLED', 'DOCKED', 'IN_SERVICE'] },
-                            id: { not: id },
-                        },
-                    });
-                    if (busyVisit) {
-                        return NextResponse.json(
-                            { error: 'Dock is already assigned to another active visit' },
-                            { status: 400 }
-                        );
-                    }
                 }
                 if (dock.status === 'CLOSED' || dock.status === 'MAINTENANCE') {
                     return NextResponse.json(
@@ -121,30 +103,45 @@ export async function PATCH(
                     );
                 }
 
-                updateData.assignedDockId = dockId;
+                const claimed = await claimDock(dockId, dock.dockType, id, visit.assignedDockId);
+                if (!claimed) {
+                    return NextResponse.json(
+                        { error: 'Dock is already assigned to another active visit' },
+                        { status: 400 }
+                    );
+                }
 
-                // Update dock status to busy
-                await prisma.dock.update({
-                    where: { id: dockId },
-                    data: { status: 'BUSY' },
-                });
+                updateData.assignedDockId = dockId;
             }
 
             // Remove from queue
             updateData.queuePosition = null;
         }
 
-        // Handle terminal states - delete the visit instead of keeping it
+        // Terminal states delete the row. The delete has to detach existing audit
+        // rows first: the FK has no ON DELETE SET NULL, so deleting a visit that had
+        // audit history threw a 500.
         const terminalStates = ['LEFT', 'CANCELLED', 'NO_SHOW'];
         if (terminalStates.includes(newStatus)) {
-            // Atomic: free dock, detach existing audit rows (FK has no ON DELETE SET NULL),
-            // then delete the visit. Old audit logs are preserved with visitId = null.
             await prisma.$transaction(async (tx) => {
                 if (visit.assignedDockId) {
-                    await tx.dock.update({
-                        where: { id: visit.assignedDockId },
-                        data: { status: 'AVAILABLE' },
+                    // Only free the dock if no other active visit is still on it —
+                    // several trucks share the scales.
+                    const otherHolder = await tx.truckVisit.findFirst({
+                        where: {
+                            assignedDockId: visit.assignedDockId,
+                            status: { in: ['CALLED', 'DOCKED', 'IN_SERVICE'] },
+                            id: { not: id },
+                        },
+                        select: { id: true },
                     });
+
+                    if (!otherHolder) {
+                        await tx.dock.update({
+                            where: { id: visit.assignedDockId },
+                            data: { status: 'AVAILABLE' },
+                        });
+                    }
                 }
 
                 await tx.auditLog.updateMany({
@@ -155,8 +152,8 @@ export async function PATCH(
                 await tx.truckVisit.delete({ where: { id } });
             });
 
-            // Audit log for the terminal transition itself — written after delete so it
-            // does not get its visitId nulled. visitId stays undefined because the row is gone.
+            // Written after the delete so it does not get its visitId nulled;
+            // visitId stays undefined because the row is gone.
             await createAuditLog({
                 action: AuditActions.STATUS_CHANGE,
                 entityType: 'TruckVisit',
@@ -173,18 +170,12 @@ export async function PATCH(
 
         // Free dock when done (but keep visit for LEFT transition)
         if (newStatus === 'DONE' && visit.assignedDockId) {
-            await prisma.dock.update({
-                where: { id: visit.assignedDockId },
-                data: { status: 'AVAILABLE' },
-            });
+            await releaseDock(visit.assignedDockId, id);
         }
 
         // Free dock when returning to WAITING (e.g., from CALLED, DOCKED, or DONE after weighing)
         if (newStatus === 'WAITING' && visit.assignedDockId) {
-            await prisma.dock.update({
-                where: { id: visit.assignedDockId },
-                data: { status: 'AVAILABLE' },
-            });
+            await releaseDock(visit.assignedDockId, id);
             updateData.assignedDockId = null;
         }
 
@@ -210,7 +201,9 @@ export async function PATCH(
         return NextResponse.json(updatedVisit);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: (error as any).errors }, { status: 400 });
+            // zod v4 exposes .issues; .errors does not exist, so this used to
+            // answer {"error": undefined} and the client showed no reason at all.
+            return NextResponse.json({ error: z.prettifyError(error), issues: error.issues }, { status: 400 });
         }
         console.error('Error updating visit status:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

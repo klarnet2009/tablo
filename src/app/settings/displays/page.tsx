@@ -1,12 +1,10 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { MobileNav } from '@/components/layout/MobileNav';
 import { Monitor, Pencil, Trash2, ChevronRight, Check, X } from 'lucide-react';
+import { Spinner, SpinnerBlock } from '@/components/Spinner';
 
 type DataStatus = 'synced' | 'lagging' | 'stale' | 'unknown';
 
@@ -51,6 +49,7 @@ export default function DisplaysSettingsPage() {
     const { data: session, status } = useSession();
     const [items, setItems] = useState<DisplayItem[] | null>(null);
     const [serverRevision, setServerRevision] = useState<number | null>(null);
+    const [loadedAt, setLoadedAt] = useState(() => Date.now());
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -64,6 +63,7 @@ export default function DisplaysSettingsPage() {
                 const data: DisplaysResponse = await res.json();
                 if (!cancelled) {
                     setItems(data.items ?? []);
+                    setLoadedAt(Date.now());
                     setServerRevision(
                         typeof data.serverRevision === 'number' ? data.serverRevision : null
                     );
@@ -81,20 +81,9 @@ export default function DisplaysSettingsPage() {
         };
     }, [status, session?.user.role]);
 
+    // Session and role are enforced by src/app/settings/layout.tsx.
     if (status === 'loading') {
-        return (
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-        );
-    }
-
-    if (!session) {
-        redirect('/login');
-    }
-
-    if (session.user.role !== 'ADMIN') {
-        redirect('/queue');
+        return <SpinnerBlock label="Loading displays" className="min-h-[50vh]" />;
     }
 
     const handleRenamed = (id: string, name: string | null) => {
@@ -106,10 +95,7 @@ export default function DisplaysSettingsPage() {
     };
 
     return (
-        <div className="flex min-h-screen bg-slate-900">
-            <Sidebar />
-            <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">
-                <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
                     <div>
                         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
                             <Link href="/settings" className="hover:text-white">Settings</Link>
@@ -140,7 +126,7 @@ export default function DisplaysSettingsPage() {
 
                     {items === null && !error && (
                         <div className="flex items-center justify-center py-16">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                            <Spinner label="Loading displays" />
                         </div>
                     )}
 
@@ -162,15 +148,13 @@ export default function DisplaysSettingsPage() {
                                     key={item.id}
                                     item={item}
                                     serverRevision={serverRevision}
+                                    loadedAt={loadedAt}
                                     onRenamed={handleRenamed}
                                     onDeleted={handleDeleted}
                                 />
                             ))}
                         </div>
                     )}
-                </div>
-            </main>
-            <MobileNav />
         </div>
     );
 }
@@ -178,6 +162,8 @@ export default function DisplaysSettingsPage() {
 interface RowProps {
     item: DisplayItem;
     serverRevision: number | null;
+    /** When the list was last fetched; see FreshnessBadge. */
+    loadedAt: number;
     onRenamed: (id: string, name: string | null) => void;
     onDeleted: (id: string) => void;
 }
@@ -185,15 +171,18 @@ interface RowProps {
 function FreshnessBadge({
     item,
     serverRevision,
+    now,
 }: {
     item: DisplayItem;
     serverRevision: number | null;
+    /** When the data was fetched. Passed in so the render stays pure. */
+    now: number;
 }) {
     if (!item.online) return null;
 
     const clientRev = item.clientRevision;
     const ackAgeSec = item.clientRevisionAt
-        ? Math.max(0, Math.floor((Date.now() - new Date(item.clientRevisionAt).getTime()) / 1000))
+        ? Math.max(0, Math.floor((now - new Date(item.clientRevisionAt).getTime()) / 1000))
         : null;
 
     const tooltip = [
@@ -234,7 +223,7 @@ function FreshnessBadge({
     );
 }
 
-function DisplayRow({ item, serverRevision, onRenamed, onDeleted }: RowProps) {
+function DisplayRow({ item, serverRevision, loadedAt, onRenamed, onDeleted }: RowProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(item.name ?? '');
     const [saving, setSaving] = useState(false);
@@ -358,7 +347,7 @@ function DisplayRow({ item, serverRevision, onRenamed, onDeleted }: RowProps) {
                                 </>
                             ) : (
                                 <>
-                                    <h3 className={`font-semibold truncate ${item.name ? 'text-white' : 'text-slate-500 italic'}`}>
+                                    <h3 className={`font-semibold truncate ${item.name ? 'text-white' : 'text-slate-400 italic'}`}>
                                         {item.name ?? '(unnamed)'}
                                     </h3>
                                     <button
@@ -373,13 +362,13 @@ function DisplayRow({ item, serverRevision, onRenamed, onDeleted }: RowProps) {
                             )}
                         </div>
 
-                        <div className="mt-1 text-xs text-slate-500 font-mono" title={item.deviceId}>
+                        <div className="mt-1 text-xs text-slate-400 font-mono" title={item.deviceId}>
                             {shortId}
                         </div>
 
                         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                             {item.online && (
-                                <FreshnessBadge item={item} serverRevision={serverRevision} />
+                                <FreshnessBadge item={item} serverRevision={serverRevision} now={loadedAt} />
                             )}
                             {item.online ? (
                                 <>
@@ -391,7 +380,7 @@ function DisplayRow({ item, serverRevision, onRenamed, onDeleted }: RowProps) {
                                     </span>
                                 </>
                             ) : (
-                                <span className="text-slate-500">
+                                <span className="text-slate-400">
                                     Last seen {formatRelative(item.updatedAt)}
                                 </span>
                             )}

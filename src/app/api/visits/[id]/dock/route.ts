@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
+import { claimDock, releaseDock } from '@/lib/docks';
 import { z } from 'zod';
 
 const reassignDockSchema = z.object({
@@ -16,18 +16,11 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const guard = await requireRole(['DISPATCHER', 'SUPERVISOR', 'ADMIN']);
+    if (!guard.ok) return guard.response;
+    const session = guard.session;
 
     const { id } = await params;
-    const userRole = session.user.role;
-
-    // Only DISPATCHER, SUPERVISOR, ADMIN can reassign docks
-    if (!['DISPATCHER', 'SUPERVISOR', 'ADMIN'].includes(userRole)) {
-        return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
-    }
 
     try {
         const body = await request.json();
@@ -66,36 +59,19 @@ export async function PATCH(
             );
         }
 
-        // Check if new dock is busy with another visit (but allow multiple for SCALES)
-        if (newDock.status === 'BUSY' && newDock.dockType !== 'SCALES') {
-            const busyVisit = await prisma.truckVisit.findFirst({
-                where: {
-                    assignedDockId: newDockId,
-                    status: { in: ['CALLED', 'DOCKED', 'IN_SERVICE'] },
-                    id: { not: id },
-                },
-            });
-            if (busyVisit) {
-                return NextResponse.json(
-                    { error: 'Dock is already assigned to another active visit' },
-                    { status: 400 }
-                );
-            }
+        // Claim the new dock before releasing the old one: if the claim loses a race
+        // the visit keeps the dock it already had instead of ending up with none.
+        const claimed = await claimDock(newDockId, newDock.dockType, id, oldDockId);
+        if (!claimed) {
+            return NextResponse.json(
+                { error: 'Dock is already assigned to another active visit' },
+                { status: 400 }
+            );
         }
 
-        // Free old dock if exists
         if (oldDockId && oldDockId !== newDockId) {
-            await prisma.dock.update({
-                where: { id: oldDockId },
-                data: { status: 'AVAILABLE' },
-            });
+            await releaseDock(oldDockId, id);
         }
-
-        // Set new dock to busy
-        await prisma.dock.update({
-            where: { id: newDockId },
-            data: { status: 'BUSY' },
-        });
 
         // Update visit with new dock
         const updatedVisit = await prisma.truckVisit.update({

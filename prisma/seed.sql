@@ -1,9 +1,8 @@
--- Seed data for Tablo
--- Users (passwords are bcrypt hashed - password: "password")
-INSERT OR REPLACE INTO User (id, username, passwordHash, displayName, role, isActive, createdAt, updatedAt) VALUES
-('admin-001', 'admin', '$2b$10$jeucR3hZvCYtMSlUF3.Z7eCER4EG5ReNdBFE5do9sIYWOfkozYSjG', 'System Administrator', 'ADMIN', 1, datetime('now'), datetime('now')),
-('dispatcher-001', 'dispatcher', '$2b$10$jeucR3hZvCYtMSlUF3.Z7eCER4EG5ReNdBFE5do9sIYWOfkozYSjG', 'Main Dispatcher', 'DISPATCHER', 1, datetime('now'), datetime('now')),
-('security-001', 'security', '$2b$10$jeucR3hZvCYtMSlUF3.Z7eCER4EG5ReNdBFE5do9sIYWOfkozYSjG', 'Gate Security', 'SECURITY', 1, datetime('now'), datetime('now'));
+-- Seed data for Tablo (docks only).
+--
+-- No user rows here on purpose: SQL cannot hash a password, so any account
+-- seeded from this file would ship with a publicly known credential. The admin
+-- account is created by docker-entrypoint.sh from ADMIN_INITIAL_PASSWORD.
 
 -- Docks
 INSERT OR REPLACE INTO Dock (id, name, dockNumber, dockType, hasReeferPower, hazmatOk, status, createdAt, updatedAt) VALUES
@@ -14,4 +13,3 @@ INSERT OR REPLACE INTO Dock (id, name, dockNumber, dockType, hasReeferPower, haz
 ('dock-005', 'Dock 5', 5, 'OUTBOUND', 1, 0, 'AVAILABLE', datetime('now'), datetime('now')),
 ('dock-006', 'Dock 6', 6, 'OUTBOUND', 0, 0, 'AVAILABLE', datetime('now'), datetime('now')),
 ('scales-001', 'Scales', 99, 'SCALES', 0, 0, 'AVAILABLE', datetime('now'), datetime('now'));
-

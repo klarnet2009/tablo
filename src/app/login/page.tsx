@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Truck, AlertCircle } from 'lucide-react';
+import { Field, controlClass } from '@/components/Field';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -24,7 +25,10 @@ export default function LoginPage() {
         });
 
         if (result?.error) {
-            setError('Invalid username or password');
+            // NextAuth reports a rejected credential as 'CredentialsSignin'; anything
+            // else is a specific reason thrown by the provider (account disabled,
+            // expired, not authorized, directory unavailable) and is worth showing.
+            setError(result.error === 'CredentialsSignin' ? 'Invalid username or password' : result.error);
             setLoading(false);
         } else {
             router.push('/');
@@ -50,67 +54,50 @@ export default function LoginPage() {
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {error && (
-                            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                            <div role="alert" className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
                                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                 {error}
                             </div>
                         )}
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Username
-                            </label>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                placeholder="Enter username"
-                                required
-                            />
-                        </div>
+                        <Field label="Username" required>
+                            {props => (
+                                <input
+                                    {...props}
+                                    type="text"
+                                    autoComplete="username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    className={controlClass}
+                                    placeholder="Enter username"
+                                    required
+                                />
+                            )}
+                        </Field>
 
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
-                                Password
-                            </label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                                placeholder="Enter password"
-                                required
-                            />
-                        </div>
+                        <Field label="Password" required>
+                            {props => (
+                                <input
+                                    {...props}
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className={controlClass}
+                                    placeholder="Enter password"
+                                    required
+                                />
+                            )}
+                        </Field>
 
                         <button
                             type="submit"
                             disabled={loading}
                             className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-cyan-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? 'Signing in...' : 'Sign In'}
+                            {loading ? 'Signing in...' : 'Sign in'}
                         </button>
                     </form>
-
-                    {/* Demo credentials */}
-                    <div className="mt-6 pt-6 border-t border-slate-700">
-                        <p className="text-xs text-slate-500 text-center mb-2">Demo accounts:</p>
-                        <div className="grid grid-cols-3 gap-2 text-xs text-slate-400">
-                            <div className="text-center">
-                                <div className="font-medium text-slate-300">admin</div>
-                                <div>admin123</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="font-medium text-slate-300">dispatcher</div>
-                                <div>dispatcher123</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="font-medium text-slate-300">security</div>
-                                <div>security123</div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

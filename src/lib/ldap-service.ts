@@ -4,8 +4,14 @@
  * group membership, and AD-specific features like disabled user detection.
  */
 
-import { Client, SearchOptions } from 'ldapts';
-import { decrypt } from './crypto';
+import { Client } from 'ldapts';
+// SearchOptions is a type; importing it as a value leaves a runtime import of a
+// name the package does not export.
+import type { SearchOptions } from 'ldapts';
+// Explicit extensions so `node --test` can load this module (Node's ESM loader
+// does not guess extensions the way the bundler does).
+import { decrypt } from './crypto.ts';
+import { buildUserSearchFilter, escapeFilterValue } from './ldap-filter.ts';
 
 // Local interface to avoid Prisma type generation dependency
 // This matches the LdapConfig model in prisma/schema.prisma
@@ -576,8 +582,8 @@ export async function searchUser(
         console.log('[LDAP searchUser] Binding as:', config.bindDn);
         await client.bind(config.bindDn, bindPassword);
 
-        // Build filter with username substitution
-        const filter = config.userSearchFilter.replace(/\{\{username\}\}/g, username);
+        // Build filter with escaped username substitution
+        const filter = buildUserSearchFilter(config.userSearchFilter, username);
         const attributes = config.userAttributes.split(',').map((a: string) => a.trim());
 
         // Ensure we always get required attributes
@@ -802,7 +808,8 @@ export async function searchGroups(
         await client.bind(config.bindDn, bindPassword);
 
         // Search for groups matching the query
-        const filter = `(&(objectClass=group)(|(cn=*${query}*)(name=*${query}*)(displayName=*${query}*)))`;
+        const q = escapeFilterValue(query);
+        const filter = `(&(objectClass=group)(|(cn=*${q}*)(name=*${q}*)(displayName=*${q}*)))`;
 
         const result = await client.search(searchBase || config.baseDn, {
             scope: 'sub',

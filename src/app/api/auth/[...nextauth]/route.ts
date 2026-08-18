@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { authenticateUser, mapGroupsToRole, GroupMappingRule } from '@/lib/ldap-service';
+import { resolveLdapFailure } from '@/lib/ldap-auth-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,9 +37,10 @@ declare module 'next-auth/jwt' {
 }
 
 /**
- * Attempt LDAP authentication
- * Returns user if successful, 'fallback' to try local auth
- * Note: We always allow local fallback for safety
+ * Attempt LDAP authentication.
+ * Returns a user if successful, 'fallback' to try local auth, or throws to deny.
+ * Whether a failure may fall back to local auth is decided by resolveLdapFailure,
+ * which honours the disableLocalFallback setting.
  */
 async function tryLdapAuth(username: string, password: string): Promise<User | null | 'fallback'> {
     try {
@@ -51,7 +53,9 @@ async function tryLdapAuth(username: string, password: string): Promise<User | n
             return 'fallback';
         }
 
-        // LDAP not fully configured - fallback to local
+        // LDAP enabled but not usable yet. Deliberately still falls back even when
+        // disableLocalFallback is set: in this state LDAP was never operational, and
+        // denying would lock out the very admin who has to finish configuring it.
         if (!ldapConfig.host || !ldapConfig.bindDn || !ldapConfig.bindPasswordEnc) {
             console.warn('[Auth] LDAP enabled but not fully configured, falling back to local auth');
             return 'fallback';
@@ -61,23 +65,20 @@ async function tryLdapAuth(username: string, password: string): Promise<User | n
         const result = await authenticateUser(ldapConfig, username, password);
 
         if (!result.success) {
-            // Check if account is disabled in AD - this should block login
-            if (result.disabled) {
-                const message = result.disabledReason === 'account_expired'
-                    ? 'Account has expired. Please contact your administrator.'
-                    : result.disabledReason === 'account_locked'
-                        ? 'Account is locked. Please contact your administrator.'
-                        : 'Account is disabled. Please contact your administrator.';
-                throw new Error(message);
+            const decision = resolveLdapFailure(ldapConfig, {
+                success: false,
+                disabled: result.disabled,
+                disabledReason: result.disabledReason,
+                deniedByGroupList: result.deniedByGroupList,
+                errorCode: result.errorCode,
+                error: result.error,
+            });
+
+            if (decision.action === 'deny') {
+                console.warn('[Auth] LDAP auth denied. Reason:', result.errorCode || result.error);
+                throw new Error(decision.message);
             }
 
-            // Check if denied by group list - this should block login
-            if (result.deniedByGroupList) {
-                throw new Error('Access denied. You are not authorized to use this application.');
-            }
-
-            // For all other failures (invalid credentials, connection errors, etc.)
-            // Always allow fallback to local auth
             console.log('[Auth] LDAP auth failed, trying local auth. Reason:', result.errorCode || result.error);
             return 'fallback';
         }
@@ -226,7 +227,10 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: 'jwt',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
+        // Was 30 days. The role and active flag baked into the token are re-checked
+        // against the database by requireRole() on every API call, so this bound
+        // only limits how long a stolen token stays usable — a shift, not a month.
+        maxAge: 12 * 60 * 60, // 12 hours
     },
 };
 

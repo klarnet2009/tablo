@@ -9,15 +9,43 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
-// Get encryption key from environment or generate a default for development
-function getEncryptionKey(): Buffer {
-    const keyHex = process.env.LDAP_ENCRYPTION_KEY;
+const KEY_BYTES = 32; // AES-256
+
+/**
+ * Resolve the key used to encrypt secrets at rest.
+ *
+ * Exported for testing. Validates eagerly so a misconfigured key fails at the
+ * point of configuration instead of surfacing as an opaque 500 from
+ * createCipheriv when an admin saves the LDAP settings.
+ */
+export function resolveEncryptionKey(keyHex: string | undefined, nodeEnv: string | undefined): Buffer {
     if (keyHex) {
-        return Buffer.from(keyHex, 'hex');
+        if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
+            throw new Error('LDAP_ENCRYPTION_KEY must be hex encoded (openssl rand -hex 32)');
+        }
+        const key = Buffer.from(keyHex, 'hex');
+        if (key.length !== KEY_BYTES) {
+            throw new Error(
+                `LDAP_ENCRYPTION_KEY must be ${KEY_BYTES} bytes (${KEY_BYTES * 2} hex characters), got ${key.length}`
+            );
+        }
+        return key;
     }
-    // Development fallback - NOT SECURE FOR PRODUCTION
+
+    if (nodeEnv === 'production') {
+        // Falling back here would encrypt the directory service-account password
+        // with a key derived from a constant in this repository.
+        throw new Error(
+            'LDAP_ENCRYPTION_KEY is required in production. Generate one with: openssl rand -hex 32'
+        );
+    }
+
     console.warn('[crypto] LDAP_ENCRYPTION_KEY not set, using development key');
     return crypto.createHash('sha256').update('tablo-dev-key').digest();
+}
+
+function getEncryptionKey(): Buffer {
+    return resolveEncryptionKey(process.env.LDAP_ENCRYPTION_KEY, process.env.NODE_ENV);
 }
 
 /**
@@ -70,19 +98,5 @@ export function decrypt(encryptedBase64: string): string {
     } catch (error) {
         console.error('[crypto] Decryption failed:', error);
         return '';
-    }
-}
-
-/**
- * Check if a value is encrypted (basic check)
- */
-export function isEncrypted(value: string): boolean {
-    if (!value) return false;
-    try {
-        const decoded = Buffer.from(value, 'base64');
-        // Minimum length: IV + AuthTag + at least 1 byte ciphertext
-        return decoded.length > IV_LENGTH + AUTH_TAG_LENGTH;
-    } catch {
-        return false;
     }
 }

@@ -7,8 +7,16 @@ services:
       - "3001:3000"
     environment:
       - DATABASE_URL=${DATABASE_URL:-file:/app/data/tablo.db}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      # Required. `?err` makes compose refuse to start instead of handing NextAuth
+      # an empty secret, which breaks every session with an opaque error.
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required (openssl rand -base64 32)}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      # Encrypts the LDAP service-account password at rest. Without it the app
+      # falls back to a key derived from a string in the source tree, i.e. no
+      # protection at all.
+      - LDAP_ENCRYPTION_KEY=${LDAP_ENCRYPTION_KEY:?LDAP_ENCRYPTION_KEY is required (openssl rand -hex 32)}
+      # Only used the first time the database is created.
+      - ADMIN_INITIAL_PASSWORD=${ADMIN_INITIAL_PASSWORD:-}
       - EXTERNAL_API_URL=${EXTERNAL_API_URL}
       - EXTERNAL_API_USERNAME=${EXTERNAL_API_USERNAME}
       - EXTERNAL_API_PASSWORD=${EXTERNAL_API_PASSWORD}

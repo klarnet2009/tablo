@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
+import { createAuditLog, AuditActions } from '@/lib/audit';
 
 /**
  * POST /api/visits/import
@@ -9,10 +9,9 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const guard = await requireRole(['DISPATCHER', 'SUPERVISOR', 'ADMIN']);
+        if (!guard.ok) return guard.response;
+        const session = guard.session;
 
         const body = await request.json();
         const { cargos } = body;
@@ -69,6 +68,17 @@ export async function POST(request: NextRequest) {
 
             createdVisits.push(visit);
         }
+
+        await createAuditLog({
+            action: AuditActions.VISIT_CREATED,
+            entityType: 'TruckVisit',
+            entityId: 'cargo-import',
+            userId: session.user.id,
+            metadata: {
+                imported: createdVisits.map(v => ({ id: v.id, orderRef: v.orderRef })),
+                updated: updatedVisits.map(v => ({ id: v.id, orderRef: v.orderRef })),
+            },
+        });
 
         return NextResponse.json({
             success: true,

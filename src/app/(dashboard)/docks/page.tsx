@@ -2,7 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
-import { Square, Settings, Truck, Snowflake, AlertTriangle } from 'lucide-react';
+import { Square, Truck, Snowflake, AlertTriangle } from 'lucide-react';
+import { SpinnerBlock } from '@/components/Spinner';
 
 interface Dock {
     id: string;
@@ -59,21 +60,20 @@ export default function DocksPage() {
         INBOUND: 'Inbound only',
         OUTBOUND: 'Outbound only',
         BOTH: 'In/Outbound',
+        SCALES: 'Weighbridge',
     };
 
     return (
         <div className="p-4 md:p-6">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-white">Dock Management</h1>
-                    <p className="text-slate-400 text-sm md:text-base">View and manage loading docks</p>
+                    <h1 className="text-xl md:text-2xl font-bold text-white">Docks</h1>
+                    <p className="text-slate-400 text-sm md:text-base">Availability and current occupant of every dock</p>
                 </div>
             </div>
 
             {isLoading ? (
-                <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                </div>
+                <SpinnerBlock label="Loading docks" />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {docks.map(dock => {
@@ -126,6 +126,17 @@ export default function DocksPage() {
                                             <p className="text-xs text-slate-400 mt-1">{dock.currentVisit.carrier}</p>
                                         )}
                                     </div>
+                                )}
+
+                                {/* A dock stuck BUSY with no truck on it cannot be claimed
+                                    (see lib/docks.ts) and has to be freed by hand. */}
+                                {canManage && dock.status === 'BUSY' && !dock.currentVisit && (
+                                    <button
+                                        onClick={() => updateMutation.mutate({ id: dock.id, status: 'AVAILABLE' })}
+                                        className="w-full px-3 py-2 text-xs bg-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/30 transition"
+                                    >
+                                        Mark free (no truck at dock)
+                                    </button>
                                 )}
 
                                 {/* Actions */}

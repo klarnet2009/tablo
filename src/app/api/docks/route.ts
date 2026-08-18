@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
+import { z } from 'zod';
+
+// Was unvalidated: a missing name or a string dockNumber reached Prisma and came
+// back as a 500.
+const createDockSchema = z.object({
+    name: z.string().min(1),
+    dockNumber: z.number().int().positive(),
+    dockType: z.enum(['INBOUND', 'OUTBOUND', 'BOTH', 'SCALES']).default('BOTH'),
+    hasReeferPower: z.boolean().default(false),
+    hazmatOk: z.boolean().default(false),
+    maxLength: z.number().positive().nullish(),
+    dockHeight: z.number().positive().nullish(),
+});
 
 // GET /api/docks - List all docks
 export async function GET() {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const guard = await requireRole();
+    if (!guard.ok) return guard.response;
 
     const docks = await prisma.dock.findMany({
         orderBy: { dockNumber: 'asc' },
@@ -35,33 +45,21 @@ export async function GET() {
 
 // POST /api/docks - Create new dock (SUPERVISOR+)
 export async function POST(request: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!['SUPERVISOR', 'ADMIN'].includes(session.user.role)) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const guard = await requireRole(['SUPERVISOR', 'ADMIN']);
+    if (!guard.ok) return guard.response;
 
     try {
-        const body = await request.json();
+        const data = createDockSchema.parse(await request.json());
 
         const dock = await prisma.dock.create({
-            data: {
-                name: body.name,
-                dockNumber: body.dockNumber,
-                dockType: body.dockType || 'BOTH',
-                hasReeferPower: body.hasReeferPower || false,
-                hazmatOk: body.hazmatOk || false,
-                maxLength: body.maxLength,
-                dockHeight: body.dockHeight,
-                status: 'AVAILABLE',
-            },
+            data: { ...data, status: 'AVAILABLE' },
         });
 
         return NextResponse.json(dock, { status: 201 });
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: z.prettifyError(error), issues: error.issues }, { status: 400 });
+        }
         console.error('Error creating dock:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }

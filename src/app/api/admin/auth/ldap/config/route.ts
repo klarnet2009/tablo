@@ -5,24 +5,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
-import { encrypt, decrypt } from '@/lib/crypto';
+import { requireRole } from '@/lib/api-auth';
+import { encrypt } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/admin/auth/ldap/config
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json(
-                { error: 'Unauthorized', message: 'Admin access required' },
-                { status: 403 }
-            );
-        }
+        const guard = await requireRole(['ADMIN']);
+        if (!guard.ok) return guard.response;
 
         // Get or create config singleton
         let config = await prisma.ldapConfig.findUnique({
@@ -55,20 +48,14 @@ export async function GET() {
 // PUT /api/admin/auth/ldap/config
 export async function PUT(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json(
-                { error: 'Unauthorized', message: 'Admin access required' },
-                { status: 403 }
-            );
-        }
+        const guard = await requireRole(['ADMIN']);
+        if (!guard.ok) return guard.response;
 
         const body = await request.json();
 
         // Prepare update data
         const updateData: Record<string, unknown> = {
-            updatedById: session.user.id,
+            updatedById: guard.session.user.id,
         };
 
         // Map allowed fields

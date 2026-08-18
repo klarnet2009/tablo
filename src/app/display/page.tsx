@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Thermometer, Scale } from 'lucide-react';
+import { Thermometer, Scale, TriangleAlert } from 'lucide-react';
 import Image from 'next/image';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
 
@@ -97,34 +97,47 @@ function DisplayContent() {
     useEffect(() => {
         const cycleTime = 600000; // 10 minutes cycle
 
-        // Show immediately on load, then every 10 minutes
-        triggerWarning();
+        // Shortly after load, then every 10 minutes. Deferred so the first paint is
+        // not a full-width red banner, and so the effect body does not setState.
+        const firstRun = setTimeout(triggerWarning, 2000);
         const timer = setInterval(triggerWarning, cycleTime);
-        return () => clearInterval(timer);
+        return () => {
+            clearTimeout(firstRun);
+            clearInterval(timer);
+        };
     }, []);
 
-    // Poll for manual trigger from queue management
+    // Poll for a manual trigger from queue management. The endpoint reports the
+    // timestamp of the last trigger and we react to it changing, so this screen —
+    // which is unauthenticated — needs no write access to clear a flag, and several
+    // boards react to one trigger.
+    const lastTriggerRef = useRef<number | null>(null);
     useEffect(() => {
         const pollTrigger = async () => {
             try {
                 const res = await fetch('/api/display/warning-trigger', {
                     signal: AbortSignal.timeout(3000),
                 });
-                const data = await res.json();
-                if (data.trigger && !showParkingWarning) {
-                    triggerWarning();
-                    // Clear the trigger
-                    await fetch('/api/display/warning-trigger', {
-                        method: 'DELETE',
-                        signal: AbortSignal.timeout(3000),
-                    });
+                const { triggeredAt } = await res.json();
+
+                // First poll only records the current value: a trigger fired before
+                // this screen was opened must not replay on load.
+                if (lastTriggerRef.current === null) {
+                    lastTriggerRef.current = triggeredAt;
+                    return;
+                }
+                if (triggeredAt !== lastTriggerRef.current) {
+                    lastTriggerRef.current = triggeredAt;
+                    if (triggeredAt > 0 && !showParkingWarning) triggerWarning();
                 }
             } catch {
                 // Ignore errors
             }
         };
 
-        const timer = setInterval(pollTrigger, 2000); // Poll every 2 seconds
+        // 10s, not 2s: that was 43,200 requests a day per screen to watch a flag a
+        // dispatcher presses a few times a day.
+        const timer = setInterval(pollTrigger, 10000);
         return () => clearInterval(timer);
     }, [showParkingWarning]);
 
@@ -323,12 +336,18 @@ function DisplayContent() {
     }, [lastSuccessTime]);
 
     // 1s tick to keep the status dot reactive to elapsed time.
+    const [nowTs, setNowTs] = useState(() => Date.now());
     useEffect(() => {
-        const t = setInterval(() => setNowTick(n => (n + 1) & 0xffff), 1000);
+        const t = setInterval(() => {
+            setNowTick(n => (n + 1) & 0xffff);
+            setNowTs(Date.now());
+        }, 1000);
         return () => clearInterval(t);
     }, []);
 
-    const secondsSinceLastSuccess = Math.floor((Date.now() - lastSuccessTime.getTime()) / 1000);
+    // Derived from ticking state rather than a Date.now() call during render, which
+    // makes the render impure and its output unstable across re-renders.
+    const secondsSinceLastSuccess = Math.floor((nowTs - lastSuccessTime.getTime()) / 1000);
     const isConnectionLost = !sseOpen || secondsSinceLastSuccess > STALE_THRESHOLD_SEC;
 
     // Filter for display:
@@ -340,23 +359,13 @@ function DisplayContent() {
         .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
     // Flash notification queue system
-    const [currentFlash, setCurrentFlash] = useState<TruckVisit | null>(null);
     const [flashQueue, setFlashQueue] = useState<TruckVisit[]>([]);
+    const currentFlash = flashQueue[0] ?? null;
     const previousVisitsRef = useRef<TruckVisit[]>([]);
     const shownFlashIdsRef = useRef<Set<string>>(new Set()); // Track already shown flashes
 
-    // Fast language rotation for flash notification (1 second)
-    const [flashLocaleIndex, setFlashLocaleIndex] = useState(0);
-    useEffect(() => {
-        if (!currentFlash) return;
-        const timer = setInterval(() => {
-            setFlashLocaleIndex(i => (i + 1) % locales.length);
-        }, 1000); // 1 second rotation during flash
-        return () => clearInterval(timer);
-    }, [currentFlash, locales.length]);
-
-    // Use fast-rotating locale for flash, normal for rest
-    const flashT = getTranslations(locales[flashLocaleIndex]);
+    // Alternates once a second off the shared tick.
+    const flashT = getTranslations(locales[Math.floor(nowTs / 1000) % locales.length]);
 
     // Detect new CALLED trucks and add to queue
     useEffect(() => {
@@ -389,23 +398,15 @@ function DisplayContent() {
         }
     }, [visits]);
 
-    // Process queue: show next flash when current one ends
+    // Each flash shows for 5 seconds, then the queue advances. Keyed on the id, not
+    // the object: every payload brings fresh objects, and depending on those would
+    // restart the timer before it ever fired.
+    const currentFlashId = currentFlash?.id;
     useEffect(() => {
-        // If nothing is showing and queue has items, show next
-        if (!currentFlash && flashQueue.length > 0) {
-            const [next, ...rest] = flashQueue;
-            setCurrentFlash(next);
-            setFlashLocaleIndex(0);
-            setFlashQueue(rest);
-        }
-    }, [currentFlash, flashQueue]);
-
-    // Timer to clear current flash after 5 seconds
-    useEffect(() => {
-        if (!currentFlash) return;
-        const timer = setTimeout(() => setCurrentFlash(null), 5000);
+        if (!currentFlashId) return;
+        const timer = setTimeout(() => setFlashQueue(queue => queue.slice(1)), 5000);
         return () => clearTimeout(timer);
-    }, [currentFlash]);
+    }, [currentFlashId]);
 
     // Pagination for small screen if too many items
     const [page, setPage] = useState(0);
@@ -433,8 +434,11 @@ function DisplayContent() {
             {showParkingWarning && !currentFlash && (
                 <div className="absolute inset-x-0 top-0 z-30 bg-black h-12 flex items-center overflow-hidden">
                     <div className={`bg-red-600 w-full h-full flex items-center overflow-hidden ${warningBlinkPhase ? 'animate-blink-fast' : ''}`}>
+                        {/* Pinned while the message scrolls; an emoji inside the
+                            scrolling run rendered in the OS emoji font. */}
+                        <TriangleAlert className="w-7 h-7 shrink-0 mx-2 text-white" aria-hidden="true" />
                         <div className="whitespace-nowrap animate-scroll-warning text-white font-black text-xl uppercase tracking-wider">
-                            ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️ {warningT.parkingWarning} ⚠️
+                            {Array.from({ length: 6 }, () => warningT.parkingWarning).join('  \u2022  ')}
                         </div>
                     </div>
                 </div>
@@ -522,7 +526,7 @@ function DisplayContent() {
             {/* Main Content Table - Optimized for readability from distance */}
             <div className="flex-1 flex flex-col gap-1">
                 {/* Table Header */}
-                <div className="grid grid-cols-8 gap-2 text-xs text-slate-500 font-bold uppercase px-2">
+                <div className="grid grid-cols-8 gap-2 text-xs text-slate-400 font-bold uppercase px-2">
                     <div className="col-span-6">{t.plateNumber}</div>
                     <div className="col-span-2 text-right">{t.dockStatus}</div>
                 </div>
@@ -533,7 +537,6 @@ function DisplayContent() {
                     const isDocked = visit.status === 'DOCKED';
                     const isLoading = visit.status === 'IN_SERVICE';
                     const isActive = isCalled || isDocked || isLoading;
-                    const globalIdx = (page * itemsPerPage) + idx + 1;
 
                     return (
                         <div

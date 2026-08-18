@@ -8,10 +8,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
 import { testConnection, testConnectivity } from '@/lib/ldap-service';
+import { resolveBindPasswordSource } from '@/lib/ldap-auth-policy';
+import { requireRole } from '@/lib/api-auth';
 import { encrypt } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
@@ -19,14 +19,10 @@ export const dynamic = 'force-dynamic';
 // POST /api/admin/auth/ldap/test-connection
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session || !['ADMIN', 'SUPERVISOR'].includes(session.user.role)) {
-            return NextResponse.json(
-                { error: 'Unauthorized', message: 'Admin access required' },
-                { status: 403 }
-            );
-        }
+        // ADMIN only: this endpoint can make the server bind to an operator-supplied
+        // host with the stored directory credentials.
+        const guard = await requireRole(['ADMIN']);
+        if (!guard.ok) return guard.response;
 
         const body = await request.json();
         const testMode = body.testMode || 'bind'; // 'connectivity' or 'bind'
@@ -61,9 +57,7 @@ export async function POST(request: NextRequest) {
             tlsCaCert: body.tlsCaCert ?? config?.tlsCaCert ?? null,
             connectTimeout: body.connectTimeout ?? config?.connectTimeout ?? 5000,
             bindDn: body.bindDn ?? config?.bindDn ?? '',
-            bindPasswordEnc: body.bindPassword
-                ? encrypt(body.bindPassword)
-                : config?.bindPasswordEnc ?? '',
+            bindPasswordEnc: '',
             baseDn: body.baseDn ?? config?.baseDn ?? '',
         };
 
@@ -82,12 +76,39 @@ export async function POST(request: NextRequest) {
         }
 
         // Bind mode (Step 2) - full bind test with credentials
-        if (!testConfig.bindDn || !testConfig.bindPasswordEnc) {
+        if (!testConfig.bindDn) {
             return NextResponse.json({
                 success: false,
                 message: 'Bind DN and password are required',
             });
         }
+
+        // The stored password may only be replayed against the stored target.
+        const passwordSource = resolveBindPasswordSource(
+            {
+                host: testConfig.host,
+                port: testConfig.port,
+                bindDn: testConfig.bindDn,
+                bindPassword: body.bindPassword,
+            },
+            config
+                ? {
+                    host: config.host ?? '',
+                    port: config.port ?? 389,
+                    bindDn: config.bindDn ?? '',
+                    hasStoredPassword: !!config.bindPasswordEnc,
+                }
+                : null
+        );
+
+        if ('error' in passwordSource) {
+            return NextResponse.json({ success: false, message: passwordSource.error });
+        }
+
+        testConfig.bindPasswordEnc =
+            passwordSource.source === 'request'
+                ? encrypt(body.bindPassword)
+                : config?.bindPasswordEnc ?? '';
 
         // Test the connection with bind
         const result = await testConnection(testConfig);

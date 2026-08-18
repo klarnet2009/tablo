@@ -1,33 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
+import { sortVisitsForQueue } from '@/lib/queue-order';
+import { createVisitSchema, parseTimeOfDay } from '@/lib/visit-schemas';
 import { z } from 'zod';
-
-// Validation schema for creating a visit
-const createVisitSchema = z.object({
-    truckPlate: z.string().min(1).transform(s => s.toUpperCase().replace(/\s/g, '')),
-    trailerPlate: z.string().optional().transform(s => s?.toUpperCase().replace(/\s/g, '')),
-    carrier: z.string().optional(),
-    driverName: z.string().optional(),
-    driverPhone: z.string().optional(),
-    loadType: z.enum(['INBOUND', 'OUTBOUND', 'MIXED']).default('INBOUND'),
-    orderRef: z.string().optional(),
-    priority: z.enum(['NORMAL', 'HIGH', 'URGENT', 'SLA']).default('NORMAL'),
-    scheduledAt: z.string().optional(),
-    notes: z.string().optional(),
-    flags: z.array(z.string()).optional(),
-});
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/visits - List visits with optional filtering
 export async function GET(request: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const guard = await requireRole();
+    if (!guard.ok) return guard.response;
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -49,6 +33,11 @@ export async function GET(request: NextRequest) {
 
     if (date) {
         const startOfDay = new Date(date);
+        if (Number.isNaN(startOfDay.getTime())) {
+            // An unparseable date used to reach Prisma as an Invalid Date and come
+            // back as a 500.
+            return NextResponse.json({ error: 'Invalid date parameter' }, { status: 400 });
+        }
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(date);
         endOfDay.setHours(23, 59, 59, 999);
@@ -70,22 +59,16 @@ export async function GET(request: NextRequest) {
                 select: { id: true, displayName: true },
             },
         },
-        orderBy: [
-            { priority: 'desc' },
-            { queuePosition: 'asc' },
-            { createdAt: 'asc' },
-        ],
     });
 
-    return NextResponse.json(visits);
+    return NextResponse.json(sortVisitsForQueue(visits));
 }
 
 // POST /api/visits - Create new visit
 export async function POST(request: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const guard = await requireRole();
+    if (!guard.ok) return guard.response;
+    const session = guard.session;
 
     try {
         const body = await request.json();
@@ -108,37 +91,35 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Get next queue position
-        const lastInQueue = await prisma.truckVisit.findFirst({
-            where: {
-                status: { in: ['WAITING', 'ARRIVED'] },
-                queuePosition: { not: null },
-            },
-            orderBy: { queuePosition: 'desc' },
-        });
-        const nextPosition = (lastInQueue?.queuePosition || 0) + 1;
+        const scheduledAtDate = data.scheduledAt
+            ? parseTimeOfDay(data.scheduledAt, new Date())
+            : null;
 
-        // Convert scheduledAt time string to Date if provided
-        let scheduledAtDate: Date | null = null;
-        if (data.scheduledAt) {
-            const today = new Date();
-            const [hours, minutes] = data.scheduledAt.split(':');
-            scheduledAtDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes));
-        }
+        // Reading the last position and inserting must be one unit of work, or two
+        // simultaneous registrations are handed the same queue position.
+        const visit = await prisma.$transaction(async (tx) => {
+            const lastInQueue = await tx.truckVisit.findFirst({
+                where: {
+                    status: { in: ['WAITING', 'ARRIVED'] },
+                    queuePosition: { not: null },
+                },
+                orderBy: { queuePosition: 'desc' },
+            });
 
-        const visit = await prisma.truckVisit.create({
-            data: {
-                ...data,
-                scheduledAt: scheduledAtDate,
-                flags: data.flags ? JSON.stringify(data.flags) : null,
-                status: 'ARRIVED',
-                arrivedAt: new Date(),
-                queuePosition: nextPosition,
-                createdById: session.user.id,
-            },
-            include: {
-                assignedDock: true,
-            },
+            return tx.truckVisit.create({
+                data: {
+                    ...data,
+                    scheduledAt: scheduledAtDate,
+                    flags: data.flags ? JSON.stringify(data.flags) : null,
+                    status: 'ARRIVED',
+                    arrivedAt: new Date(),
+                    queuePosition: (lastInQueue?.queuePosition ?? 0) + 1,
+                    createdById: session.user.id,
+                },
+                include: {
+                    assignedDock: true,
+                },
+            });
         });
 
         await createAuditLog({
@@ -153,7 +134,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(visit, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: (error as any).errors }, { status: 400 });
+            // zod v4 exposes .issues; .errors does not exist, so this used to
+            // answer {"error": undefined} and the client showed no reason at all.
+            return NextResponse.json({ error: z.prettifyError(error), issues: error.issues }, { status: 400 });
         }
         console.error('Error creating visit:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

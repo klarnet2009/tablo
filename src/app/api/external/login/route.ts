@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 import { authenticate, isExternalApiConfigured } from '@/lib/external-api';
+import { requireRole } from '@/lib/api-auth';
+
+// Diagnostics for the external cargo API connection. Both handlers trigger a
+// login with the server's stored credentials, so they are restricted rather than
+// left open to the internet.
+const ALLOWED = ['SUPERVISOR', 'ADMIN'] as const;
 
 /**
  * POST /api/external/login
@@ -7,6 +13,9 @@ import { authenticate, isExternalApiConfigured } from '@/lib/external-api';
  */
 export async function POST() {
     try {
+        const guard = await requireRole(ALLOWED);
+        if (!guard.ok) return guard.response;
+
         if (!isExternalApiConfigured()) {
             return NextResponse.json(
                 { error: 'External API not configured. Check environment variables.' },
@@ -35,6 +44,9 @@ export async function POST() {
  * Check if authenticated with external API
  */
 export async function GET() {
+    const guard = await requireRole(ALLOWED);
+    if (!guard.ok) return guard.response;
+
     try {
         if (!isExternalApiConfigured()) {
             return NextResponse.json({

@@ -4,10 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
 import { browseDirectory, detectBaseDN } from '@/lib/ldap-service';
+import { requireRole } from '@/lib/api-auth';
 import { encrypt } from '@/lib/crypto';
 
 export const dynamic = 'force-dynamic';
@@ -41,14 +40,11 @@ function setCache(key: string, data: unknown): void {
 // POST /api/admin/auth/ldap/browse
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session || !['ADMIN', 'SUPERVISOR'].includes(session.user.role)) {
-            return NextResponse.json(
-                { error: 'Unauthorized', message: 'Admin access required' },
-                { status: 403 }
-            );
-        }
+        // ADMIN only: accepts an inline connectionConfig, i.e. it makes the server
+        // open a connection to a caller-supplied host. The LDAP wizard that calls
+        // this is already reachable by admins only.
+        const guard = await requireRole(['ADMIN']);
+        if (!guard.ok) return guard.response;
 
         const body = await request.json();
         const { dn, detectBase, connectionConfig } = body;

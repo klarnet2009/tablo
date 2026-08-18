@@ -3,9 +3,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { requireRole } from '@/lib/api-auth';
 import { z } from 'zod';
 import { createAuditLog, AuditActions } from '@/lib/audit';
 import { ensureDisplaySchema, unregister } from '@/lib/display-registry';
@@ -21,13 +20,8 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json(
-                { error: 'Unauthorized', message: 'Admin access required' },
-                { status: 403 }
-            );
-        }
+        const guard = await requireRole(['ADMIN']);
+        if (!guard.ok) return guard.response;
 
         await ensureDisplaySchema();
 
@@ -59,7 +53,7 @@ export async function PATCH(
             action: AuditActions.DISPLAY_RENAMED,
             entityType: 'Display',
             entityId: existing.id,
-            userId: session.user.id,
+            userId: guard.session.user.id,
             beforeState: { name: existing.name },
             afterState: { name: updated.name },
             metadata: { deviceId: existing.deviceId },
@@ -80,13 +74,8 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || session.user.role !== 'ADMIN') {
-            return NextResponse.json(
-                { error: 'Unauthorized', message: 'Admin access required' },
-                { status: 403 }
-            );
-        }
+        const guard = await requireRole(['ADMIN']);
+        if (!guard.ok) return guard.response;
 
         await ensureDisplaySchema();
 
@@ -108,7 +97,7 @@ export async function DELETE(
             action: AuditActions.DISPLAY_DELETED,
             entityType: 'Display',
             entityId: existing.id,
-            userId: session.user.id,
+            userId: guard.session.user.id,
             beforeState: { name: existing.name, deviceId: existing.deviceId },
         });
 
