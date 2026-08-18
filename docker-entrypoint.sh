@@ -12,6 +12,18 @@ DB_PATH="/app/data/tablo.db"
 # with prisma/schema.prisma. See README ("Database schema") before editing.
 # ---------------------------------------------------------------------------
 
+display_ddl() {
+    cat <<'EOF'
+CREATE TABLE IF NOT EXISTS Display (
+    id TEXT PRIMARY KEY,
+    deviceId TEXT UNIQUE NOT NULL,
+    name TEXT,
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+);
+EOF
+}
+
 ldap_config_ddl() {
     cat <<'EOF'
 CREATE TABLE IF NOT EXISTS LdapConfig (
@@ -154,6 +166,7 @@ CREATE INDEX IF NOT EXISTS idx_auditlog_created ON AuditLog(createdAt);
 EOF
 
     ldap_config_ddl | sqlite3 "$DB_PATH"
+    display_ddl | sqlite3 "$DB_PATH"
 
     echo "Creating admin account..."
     # bcryptjs is copied into the runtime image by the Dockerfile.
@@ -185,6 +198,12 @@ else
     sqlite3 "$DB_PATH" "SELECT scheduledAt FROM TruckVisit LIMIT 1;" 2>/dev/null || {
         echo "Adding scheduledAt column..."
         sqlite3 "$DB_PATH" "ALTER TABLE TruckVisit ADD COLUMN scheduledAt TEXT;"
+    }
+
+    # Create Display table if it doesn't exist
+    sqlite3 "$DB_PATH" "SELECT 1 FROM Display LIMIT 1;" 2>/dev/null || {
+        echo "Creating Display table..."
+        display_ddl | sqlite3 "$DB_PATH"
     }
 
     # Create LdapConfig table if it doesn't exist

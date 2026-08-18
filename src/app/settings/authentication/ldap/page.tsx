@@ -1,36 +1,13 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { MobileNav } from '@/components/layout/MobileNav';
 import { ChevronRight } from 'lucide-react';
 import { LdapWizard } from '@/components/ldap/LdapWizard';
-import { SpinnerBlock } from '@/components/Spinner';
 
+// Session and role are enforced by src/app/settings/layout.tsx.
 export default function LdapSettingsPage() {
-    const { data: session, status } = useSession();
-
-    if (status === 'loading') {
-        return (
-            <SpinnerBlock label="Loading your session" className="min-h-screen bg-slate-900" />
-        );
-    }
-
-    if (!session) {
-        redirect('/login');
-    }
-
-    if (session.user.role !== 'ADMIN') {
-        redirect('/queue');
-    }
-
     return (
-        <div className="flex min-h-screen bg-slate-900">
-            <Sidebar />
-            <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">
-                <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
                     {/* Header */}
                     <div>
                         <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
@@ -46,11 +23,8 @@ export default function LdapSettingsPage() {
                         </p>
                     </div>
 
-                    {/* LDAP Wizard */}
-                    <LdapWizard />
-                </div>
-            </main>
-            <MobileNav />
+            {/* LDAP Wizard */}
+            <LdapWizard />
         </div>
     );
 }

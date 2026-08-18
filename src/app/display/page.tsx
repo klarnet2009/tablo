@@ -1,6 +1,5 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Thermometer, Scale, TriangleAlert } from 'lucide-react';
@@ -49,17 +48,12 @@ function DisplayContent() {
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [showParkingWarning, setShowParkingWarning] = useState(false);
 
-    // Ticks once a second. Drives the clock and, below, how stale the queue data is.
-    const [nowTs, setNowTs] = useState(() => Date.now());
-    const [mountedAt] = useState(() => Date.now());
-
     useEffect(() => {
-        const tick = () => {
+        // Update clock every second
+        const timer = setInterval(() => {
             const now = new Date();
             setCurrentTime(now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
-            setNowTs(now.getTime());
-        };
-        const timer = setInterval(tick, 1000);
+        }, 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -68,7 +62,9 @@ function DisplayContent() {
         const fetchWeather = async () => {
             try {
                 // Using Open-Meteo free API (no API key needed) - Olaine, Latvia
-                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.7847&longitude=23.9378&current_weather=true');
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=56.7847&longitude=23.9378&current_weather=true', {
+                    signal: AbortSignal.timeout(8000),
+                });
                 const data = await res.json();
                 if (data.current_weather) {
                     setWeather({ temp: Math.round(data.current_weather.temperature) });
@@ -101,8 +97,8 @@ function DisplayContent() {
     useEffect(() => {
         const cycleTime = 600000; // 10 minutes cycle
 
-        // Shortly after load, then every 10 minutes. The initial call is deferred
-        // so the first paint is not a full-width red banner.
+        // Shortly after load, then every 10 minutes. Deferred so the first paint is
+        // not a full-width red banner, and so the effect body does not setState.
         const firstRun = setTimeout(triggerWarning, 2000);
         const timer = setInterval(triggerWarning, cycleTime);
         return () => {
@@ -111,15 +107,17 @@ function DisplayContent() {
         };
     }, []);
 
-    // Poll for a manual trigger from queue management. The endpoint returns the
-    // timestamp of the last trigger and we react to it changing, so the display
-    // needs no write access to clear it (it is an unauthenticated screen) and
-    // several screens can react to the same trigger.
+    // Poll for a manual trigger from queue management. The endpoint reports the
+    // timestamp of the last trigger and we react to it changing, so this screen —
+    // which is unauthenticated — needs no write access to clear a flag, and several
+    // boards react to one trigger.
     const lastTriggerRef = useRef<number | null>(null);
     useEffect(() => {
         const pollTrigger = async () => {
             try {
-                const res = await fetch('/api/display/warning-trigger');
+                const res = await fetch('/api/display/warning-trigger', {
+                    signal: AbortSignal.timeout(3000),
+                });
                 const { triggeredAt } = await res.json();
 
                 // First poll only records the current value: a trigger fired before
@@ -137,10 +135,8 @@ function DisplayContent() {
             }
         };
 
-        // 10s, not the 2s this used to run at: that was 30 requests a minute —
-        // 43,200 a day per screen — to watch a flag a dispatcher touches a few
-        // times a day. Ten seconds is still well inside "press the button, look up
-        // at the board".
+        // 10s, not 2s: that was 43,200 requests a day per screen to watch a flag a
+        // dispatcher presses a few times a day.
         const timer = setInterval(pollTrigger, 10000);
         return () => clearInterval(timer);
     }, [showParkingWarning]);
@@ -156,64 +152,219 @@ function DisplayContent() {
 
     const warningT = getTranslations(locales[warningLocaleIndex]);
 
-    // Connection health: measured as "how long since the last successful fetch"
-    // rather than by counting error events, so a query that stops firing at all
-    // (paused, suspended tab, stalled event loop) is caught the same way.
-    const STALE_WARNING_MS = 15000;
-    const STALE_RELOAD_MS = 60000;
+    // Real-time feed via Server-Sent Events.
+    //   - EventSource auto-reconnects on transport errors.
+    //   - Server sends a heartbeat comment every 15s so proxies keep the TCP open.
+    //   - A visits event carries the full active queue snapshot.
+    //   - The watchdog below is a last-resort: if we go >90s without any payload
+    //     it forces a full page reload.
+    const [visits, setVisits] = useState<TruckVisit[]>([]);
+    const [sseOpen, setSseOpen] = useState(false);
+    const [lastSuccessTime, setLastSuccessTime] = useState<Date>(new Date());
+    const [, setNowTick] = useState(0);
 
-    const { data: visits = [], dataUpdatedAt } = useQuery<TruckVisit[]>({
-        queryKey: ['visits', 'display'],
-        queryFn: async () => {
-            const res = await fetch('/api/display', {
-                signal: AbortSignal.timeout(4000)
-            });
-            if (!res.ok) throw new Error('API error');
-            return await res.json();
-        },
-        refetchInterval: 5000,
-        // KEY FIX: continue polling even when the browser tab loses focus.
-        // Without this, React Query pauses refetchInterval on backgrounded/unfocused tabs,
-        // which is exactly what happens on TV kiosk browsers.
-        refetchIntervalInBackground: true,
-        // Never pause on `navigator.onLine === false`: a paused query produces neither
-        // success nor error, so connectionErrors would stay 0 and the auto-reload below
-        // would never fire. This is what the removed stall watchdog used to cover.
-        networkMode: 'always',
-        retry: 1,
-    });
+    const HARD_RELOAD_AFTER_MS = 90000;
+    const STALE_THRESHOLD_SEC = 15;
+    // Freshness watchdog constants: poll the server's current payload revision
+    // every FRESHNESS_POLL_MS. If the client's stored revision is behind the
+    // server's AND stays behind for longer than FRESHNESS_RECONNECT_AFTER_MS,
+    // force a soft SSE reconnect. Covers the case where SSE stays OPEN but
+    // delivery silently stops (proxy buffer, socket hang, HTTP/2 mux stall).
+    const FRESHNESS_POLL_MS = 10000;
+    const FRESHNESS_RECONNECT_AFTER_MS = 20000;
 
-    // Age of the newest data we managed to fetch. Before the first success we
-    // measure from mount, so a display that never reaches the API still warns
-    // and still reloads.
-    const staleMs = nowTs - (dataUpdatedAt > 0 ? dataUpdatedAt : mountedAt);
-    const isConnectionLost = staleMs >= STALE_WARNING_MS;
-    const secondsUntilReload = Math.max(0, Math.ceil((STALE_RELOAD_MS - staleMs) / 1000));
+    const deviceIdRef = useRef<string>('');
+    const esRef = useRef<EventSource | null>(null);
+    const connectRef = useRef<(() => void) | null>(null);
+    const clientRevisionRef = useRef<number | null>(null);
 
     useEffect(() => {
-        if (staleMs >= STALE_RELOAD_MS) {
-            console.log('Connection lost for too long, reloading page...');
-            window.location.reload();
+        // Obtain a stable deviceId per browser — used by back-office to
+        // identify which physical screen this is.
+        let deviceId: string | null = null;
+        try {
+            deviceId = localStorage.getItem('displayDeviceId');
+            if (!deviceId) {
+                deviceId = typeof crypto !== 'undefined' && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+                localStorage.setItem('displayDeviceId', deviceId);
+            }
+        } catch {
+            deviceId = `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         }
-    }, [staleMs]);
+        deviceIdRef.current = deviceId;
+
+        const connect = () => {
+            // Close any existing connection first (visibility resume path)
+            esRef.current?.close();
+            const url = `/api/display/stream?deviceId=${encodeURIComponent(deviceId!)}`;
+            const es = new EventSource(url);
+            esRef.current = es;
+
+            es.onopen = () => setSseOpen(true);
+            es.onerror = () => {
+                setSseOpen(false);
+                // Browser will auto-reconnect while readyState !== CLOSED.
+                // If it actually closed (rare, e.g. server 4xx) we reconnect manually.
+                if (es.readyState === EventSource.CLOSED) {
+                    setTimeout(connect, 2000);
+                }
+            };
+            es.addEventListener('visits', (ev) => {
+                try {
+                    const parsed = JSON.parse((ev as MessageEvent).data);
+                    // New payload shape is { revision, visits }. Tolerate the old
+                    // shape (bare array) in case of mixed deploy.
+                    const visitsArray: TruckVisit[] = Array.isArray(parsed)
+                        ? parsed
+                        : Array.isArray(parsed?.visits) ? parsed.visits : [];
+                    if (typeof parsed?.revision === 'number') {
+                        clientRevisionRef.current = parsed.revision;
+                        // Fire-and-forget ACK so the server can surface true
+                        // data freshness on /settings/displays. keepalive lets
+                        // the POST survive if the page is being closed.
+                        try {
+                            fetch('/api/display/ack', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    deviceId: deviceIdRef.current,
+                                    revision: parsed.revision,
+                                }),
+                                keepalive: true,
+                            }).catch(() => { /* swallow */ });
+                        } catch { /* swallow */ }
+                    }
+                    setVisits(visitsArray);
+                    setLastSuccessTime(new Date());
+                } catch (err) {
+                    console.error('Failed to parse visits SSE payload:', err);
+                }
+            });
+        };
+
+        connectRef.current = connect;
+        connect();
+
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') connect();
+        };
+        const onOnline = () => connect();
+        document.addEventListener('visibilitychange', onVisibility);
+        window.addEventListener('online', onOnline);
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibility);
+            window.removeEventListener('online', onOnline);
+            esRef.current?.close();
+            esRef.current = null;
+            connectRef.current = null;
+        };
+    }, []);
+
+    // Freshness watchdog. Independent of the SSE transport: asks the server
+    // "what's your current visits revision?" every 10s. If the answer doesn't
+    // match what we last received AND the gap persists for >20s, we assume
+    // silent delivery failure (connection looks fine, data is not arriving)
+    // and force a soft reconnect. Anything worse is handled by the 90s
+    // hard-reload watchdog above.
+    useEffect(() => {
+        let firstStaleAt: number | null = null;
+        let cancelled = false;
+
+        const poll = async () => {
+            try {
+                const res = await fetch('/api/display/revision', {
+                    cache: 'no-store',
+                    signal: AbortSignal.timeout(5000),
+                });
+                if (cancelled || !res.ok) return;
+                const body = await res.json();
+                const serverRev = typeof body?.revision === 'number' ? body.revision : null;
+                const clientRev = clientRevisionRef.current;
+
+                // No signal yet (no data ever received, or old server without
+                // revision field) — skip.
+                if (serverRev === null || clientRev === null) {
+                    firstStaleAt = null;
+                    return;
+                }
+
+                if (serverRev === clientRev) {
+                    // In sync. Reset stale timer.
+                    firstStaleAt = null;
+                    return;
+                }
+
+                // Out of sync. Start / continue the stale timer.
+                if (firstStaleAt === null) {
+                    firstStaleAt = Date.now();
+                    console.log(
+                        `[display] freshness drift: client rev=${clientRev}, server rev=${serverRev}`
+                    );
+                    return;
+                }
+
+                if (Date.now() - firstStaleAt > FRESHNESS_RECONNECT_AFTER_MS) {
+                    console.log('[display] stale too long, forcing SSE reconnect');
+                    firstStaleAt = null;
+                    connectRef.current?.();
+                }
+            } catch {
+                // Transient network errors are fine — 90s watchdog covers the worst case.
+            }
+        };
+
+        const timer = setInterval(poll, FRESHNESS_POLL_MS);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+        };
+    }, []);
+
+    // Hard-reload watchdog: fires only if SSE delivers nothing for 90s.
+    useEffect(() => {
+        const watchdog = setInterval(() => {
+            const silenceMs = Date.now() - lastSuccessTime.getTime();
+            if (silenceMs > HARD_RELOAD_AFTER_MS) {
+                console.log('Display watchdog: SSE silent for 90s, reloading page...');
+                window.location.reload();
+            }
+        }, 10000);
+        return () => clearInterval(watchdog);
+    }, [lastSuccessTime]);
+
+    // 1s tick to keep the status dot reactive to elapsed time.
+    const [nowTs, setNowTs] = useState(() => Date.now());
+    useEffect(() => {
+        const t = setInterval(() => {
+            setNowTick(n => (n + 1) & 0xffff);
+            setNowTs(Date.now());
+        }, 1000);
+        return () => clearInterval(t);
+    }, []);
+
+    // Derived from ticking state rather than a Date.now() call during render, which
+    // makes the render impure and its output unstable across re-renders.
+    const secondsSinceLastSuccess = Math.floor((nowTs - lastSuccessTime.getTime()) / 1000);
+    const isConnectionLost = !sseOpen || secondsSinceLastSuccess > STALE_THRESHOLD_SEC;
 
     // Filter for display:
     // 1. CALLED/DOCKED/IN_SERVICE (Active dock assignments) - Top priority
     // 2. WAITING (Next in queue)
-    // /api/display already returns the queue in order (see lib/queue-order.ts), so
-    // these only split it, they do not re-sort it.
     const activeVisits = visits.filter(v => ['CALLED', 'DOCKED', 'IN_SERVICE'].includes(v.status));
-    const waitingVisits = visits.filter(v => v.status === 'WAITING');
+    const waitingVisits = visits
+        .filter(v => v.status === 'WAITING')
+        .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
-    // Flash notification queue. The head of the queue *is* the flash currently on
-    // screen — deriving it instead of mirroring it into a second state variable
-    // removes the pop/show round-trip that needed a cascading render.
+    // Flash notification queue system
     const [flashQueue, setFlashQueue] = useState<TruckVisit[]>([]);
     const currentFlash = flashQueue[0] ?? null;
     const previousVisitsRef = useRef<TruckVisit[]>([]);
     const shownFlashIdsRef = useRef<Set<string>>(new Set()); // Track already shown flashes
 
-    // Language of the flash alternates once a second, off the shared 1s tick.
+    // Alternates once a second off the shared tick.
     const flashT = getTranslations(locales[Math.floor(nowTs / 1000) % locales.length]);
 
     // Detect new CALLED trucks and add to queue
@@ -247,9 +398,9 @@ function DisplayContent() {
         }
     }, [visits]);
 
-    // Each flash shows for 5 seconds, then the queue advances to the next one.
-    // Keyed on the id, not the object: every poll produces fresh objects, and
-    // depending on those would restart the timer before it ever fired.
+    // Each flash shows for 5 seconds, then the queue advances. Keyed on the id, not
+    // the object: every payload brings fresh objects, and depending on those would
+    // restart the timer before it ever fired.
     const currentFlashId = currentFlash?.id;
     useEffect(() => {
         if (!currentFlashId) return;
@@ -283,12 +434,11 @@ function DisplayContent() {
             {showParkingWarning && !currentFlash && (
                 <div className="absolute inset-x-0 top-0 z-30 bg-black h-12 flex items-center overflow-hidden">
                     <div className={`bg-red-600 w-full h-full flex items-center overflow-hidden ${warningBlinkPhase ? 'animate-blink-fast' : ''}`}>
-                        {/* The icon stays put while the message scrolls: an emoji in the
-                            scrolling run rendered in the OS emoji font, at whatever weight
-                            and colour that font decided. */}
+                        {/* Pinned while the message scrolls; an emoji inside the
+                            scrolling run rendered in the OS emoji font. */}
                         <TriangleAlert className="w-7 h-7 shrink-0 mx-2 text-white" aria-hidden="true" />
                         <div className="whitespace-nowrap animate-scroll-warning text-white font-black text-xl uppercase tracking-wider">
-                            {Array.from({ length: 6 }, () => warningT.parkingWarning).join('  •  ')}
+                            {Array.from({ length: 6 }, () => warningT.parkingWarning).join('  \u2022  ')}
                         </div>
                     </div>
                 </div>
@@ -304,7 +454,7 @@ function DisplayContent() {
                         </span>
                     </div>
                     <span className="text-red-300 text-xs">
-                        Auto-reload in {secondsUntilReload}s
+                        Auto-reload in {Math.max(0, Math.ceil((HARD_RELOAD_AFTER_MS / 1000) - secondsSinceLastSuccess))}s
                     </span>
                 </div>
             )}
@@ -492,13 +642,19 @@ function DisplayContent() {
             </div>
 
             {/* Footer / Paginator dots */}
-            <div className="absolute bottom-1 right-2 flex gap-1">
-                {Array.from({ length: Math.ceil((activeVisits.length + waitingVisits.length) / itemsPerPage) }).map((_, i) => (
-                    <div
-                        key={i}
-                        className={`w-1.5 h-1.5 rounded-full ${i === page ? 'bg-blue-500' : 'bg-slate-700'}`}
-                    />
-                ))}
+            <div className="absolute bottom-1 right-2 flex items-center gap-2">
+                <div
+                    className={`w-1.5 h-1.5 rounded-full ${secondsSinceLastSuccess > 15 ? 'bg-red-500' : 'bg-green-500'}`}
+                    title="Connection status"
+                />
+                <div className="flex gap-1">
+                    {Array.from({ length: Math.ceil((activeVisits.length + waitingVisits.length) / itemsPerPage) }).map((_, i) => (
+                        <div
+                            key={i}
+                            className={`w-1.5 h-1.5 rounded-full ${i === page ? 'bg-blue-500' : 'bg-slate-700'}`}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );

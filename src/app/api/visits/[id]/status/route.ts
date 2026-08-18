@@ -118,18 +118,54 @@ export async function PATCH(
             updateData.queuePosition = null;
         }
 
-        // Terminal states used to delete the row. That destroyed the visit's
-        // timestamps (arrivedAt..leftAt), so nothing could be reported on afterwards,
-        // and it detached the visit's existing audit entries. The row is kept instead;
-        // every query in the app filters on active statuses, so it disappears from the
-        // UI either way.
+        // Terminal states delete the row. The delete has to detach existing audit
+        // rows first: the FK has no ON DELETE SET NULL, so deleting a visit that had
+        // audit history threw a 500.
         const terminalStates = ['LEFT', 'CANCELLED', 'NO_SHOW'];
         if (terminalStates.includes(newStatus)) {
-            if (visit.assignedDockId) {
-                await releaseDock(visit.assignedDockId, id);
-            }
-            // Leave the dock reference in place as history, but drop the queue slot.
-            updateData.queuePosition = null;
+            await prisma.$transaction(async (tx) => {
+                if (visit.assignedDockId) {
+                    // Only free the dock if no other active visit is still on it —
+                    // several trucks share the scales.
+                    const otherHolder = await tx.truckVisit.findFirst({
+                        where: {
+                            assignedDockId: visit.assignedDockId,
+                            status: { in: ['CALLED', 'DOCKED', 'IN_SERVICE'] },
+                            id: { not: id },
+                        },
+                        select: { id: true },
+                    });
+
+                    if (!otherHolder) {
+                        await tx.dock.update({
+                            where: { id: visit.assignedDockId },
+                            data: { status: 'AVAILABLE' },
+                        });
+                    }
+                }
+
+                await tx.auditLog.updateMany({
+                    where: { visitId: id },
+                    data: { visitId: null },
+                });
+
+                await tx.truckVisit.delete({ where: { id } });
+            });
+
+            // Written after the delete so it does not get its visitId nulled;
+            // visitId stays undefined because the row is gone.
+            await createAuditLog({
+                action: AuditActions.STATUS_CHANGE,
+                entityType: 'TruckVisit',
+                entityId: id,
+                userId: session.user.id,
+                visitId: undefined,
+                beforeState: { status: currentStatus, truckPlate: visit.truckPlate },
+                afterState: { status: newStatus, deleted: true },
+                metadata: { dockId, notes, reason: 'Terminal state - visit deleted' },
+            });
+
+            return NextResponse.json({ success: true, deleted: true, status: newStatus });
         }
 
         // Free dock when done (but keep visit for LEFT transition)

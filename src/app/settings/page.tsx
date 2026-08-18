@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Settings, Users, Database, Bell, Shield, ChevronRight } from 'lucide-react';
+import { Settings, Users, Database, Bell, Shield, Monitor, ChevronRight } from 'lucide-react';
 
 // Session and role are enforced by src/app/settings/layout.tsx.
 export default function SettingsPage() {
@@ -17,6 +17,28 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Displays - Admin Only */}
+                        {isAdmin && (
+                            <Link
+                                href="/settings/displays"
+                                className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4 md:p-6
+                                    hover:bg-slate-800/70 hover:border-slate-600/50 transition group"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Monitor className="w-8 h-8 text-emerald-400" />
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition">
+                                                Displays
+                                            </h3>
+                                            <p className="text-sm text-slate-400">Public board monitors</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 transition" />
+                                </div>
+                            </Link>
+                        )}
+
                         {/* Authentication - Admin Only */}
                         {isAdmin && (
                             <Link
