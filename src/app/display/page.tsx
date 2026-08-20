@@ -623,7 +623,7 @@ function DisplayContent() {
                 })}
 
                 {displayList.length === 0 && (
-                    <div className="flex-1 flex items-center justify-center text-slate-300 text-2xl md:text-4xl font-semibold">
+                    <div className="flex-1 flex items-center justify-center text-white text-2xl md:text-4xl font-semibold">
                         {t.noTrucks}
                     </div>
                 )}
