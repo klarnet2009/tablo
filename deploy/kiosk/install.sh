@@ -10,6 +10,12 @@
 #   KIOSK_LANG=en              lock the board to one language; empty = alternate
 #   RESTART_SCHEDULE='Sun 04:00'   systemd OnCalendar for the weekly restart
 #   RESTART_MODE=service       service (default) or reboot
+#   KIOSK_SCOPE=system         system (default) or user
+#
+# KIOSK_SCOPE=user installs into the logged-in user's systemd session instead of
+# system-wide, and is what a Raspberry Pi OS desktop image needs: Chromium has to
+# run inside the autologin user's Wayland session, which a system service cannot
+# reach. Run it *without* sudo in that mode.
 set -eu
 
 SRC_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -19,10 +25,15 @@ SRC_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 : "${KIOSK_LANG:=}"
 : "${RESTART_SCHEDULE:=Sun 04:00}"
 : "${RESTART_MODE:=service}"
+: "${KIOSK_SCOPE:=system}"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 
-[ "$(id -u)" = 0 ] || die "run with sudo"
+case "$KIOSK_SCOPE" in
+    system) [ "$(id -u)" = 0 ] || die "KIOSK_SCOPE=system needs sudo" ;;
+    user)   [ "$(id -u)" != 0 ] || die "KIOSK_SCOPE=user must run as the desktop user, without sudo" ;;
+    *)      die "KIOSK_SCOPE must be system or user" ;;
+esac
 command -v systemctl >/dev/null 2>&1 || die "systemd not found; this script targets Raspberry Pi OS"
 
 # The board is useless pointed at nothing, and a wrong URL is a silent black screen,
@@ -39,6 +50,15 @@ case "$RESTART_MODE" in
 esac
 
 echo "==> Runtime: $KIOSK_RUNTIME"
+if [ "$KIOSK_SCOPE" = user ]; then
+    case "$KIOSK_RUNTIME" in
+        cog) command -v cog >/dev/null 2>&1 || die "cog is not installed; sudo apt install cog" ;;
+        chromium) command -v chromium-browser >/dev/null 2>&1 || command -v chromium >/dev/null 2>&1 \
+                    || die "chromium is not installed" ;;
+        *) die "KIOSK_RUNTIME must be cog or chromium" ;;
+    esac
+fi
+if [ "$KIOSK_SCOPE" = system ]; then
 case "$KIOSK_RUNTIME" in
 cog)
     if ! command -v cog >/dev/null 2>&1; then
@@ -60,6 +80,93 @@ chromium)
     die "KIOSK_RUNTIME must be cog or chromium"
     ;;
 esac
+fi
+
+if [ "$KIOSK_SCOPE" = user ]; then
+    # ---- user session ----------------------------------------------------
+    UNIT_DIR="$HOME/.config/systemd/user"
+    ENV_FILE="$HOME/.config/tablo-kiosk.env"
+    BIN="$HOME/.local/bin/tablo-kiosk.sh"
+
+    echo "==> Files (user scope)"
+    mkdir -p "$UNIT_DIR" "$HOME/.local/bin"
+    install -m 755 "$SRC_DIR/tablo-kiosk.sh" "$BIN"
+
+    if [ -f "$ENV_FILE" ]; then
+        echo "    $ENV_FILE exists, leaving it alone"
+    else
+        cat > "$ENV_FILE" <<ENVFILE
+# Written by deploy/kiosk/install.sh. Edit and then:
+#   systemctl --user restart tablo-kiosk
+TABLO_URL=$TABLO_URL
+DEVICE_ID=$DEVICE_ID
+KIOSK_RUNTIME=$KIOSK_RUNTIME
+KIOSK_LANG=$KIOSK_LANG
+# A profile of its own. Sharing the desktop user's profile makes Chromium hand the
+# URL to the already-running instance and exit 0 ("Opening in existing browser
+# session"), which systemd reads as a clean stop. The board's identity comes from
+# ?deviceId= in the URL, so nothing is lost by not reusing the old profile.
+CHROMIUM_PROFILE=$HOME/.local/share/tablo-kiosk-profile
+ENVFILE
+    fi
+
+    cat > "$UNIT_DIR/tablo-kiosk.service" <<UNIT
+[Unit]
+Description=Tablo display board (kiosk)
+# default.target is reached after autologin; the launcher waits for the
+# compositor socket itself, so no ordering against a graphical target is needed.
+After=default.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/tablo-kiosk.env
+ExecStart=%h/.local/bin/tablo-kiosk.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+UNIT
+
+    cat > "$UNIT_DIR/tablo-kiosk-restart.service" <<UNIT
+[Unit]
+Description=Weekly restart of the Tablo display board
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl --user restart tablo-kiosk.service
+UNIT
+
+    cat > "$UNIT_DIR/tablo-kiosk-restart.timer" <<UNIT
+[Unit]
+Description=Weekly restart of the Tablo display board
+
+[Timer]
+OnCalendar=$RESTART_SCHEDULE
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target
+UNIT
+
+    echo "==> Enable (user scope)"
+    systemctl --user daemon-reload
+    systemctl --user enable tablo-kiosk.service tablo-kiosk-restart.timer
+    systemctl --user restart tablo-kiosk.service
+    systemctl --user start tablo-kiosk-restart.timer
+
+    echo
+    echo "Done. Board: $TABLO_URL (deviceId=$DEVICE_ID)"
+    echo
+    systemctl --user --no-pager --lines=0 status tablo-kiosk.service || true
+    echo
+    systemctl --user list-timers --no-pager tablo-kiosk-restart.timer || true
+    echo
+    echo "Logs:    journalctl --user -u tablo-kiosk -f"
+    echo "Config:  $ENV_FILE"
+    exit 0
+fi
 
 echo "==> Service account"
 if ! id tablo >/dev/null 2>&1; then

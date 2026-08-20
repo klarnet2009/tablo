@@ -50,6 +50,17 @@ cog)
     ;;
 
 chromium)
+    # Under a Wayland session the compositor may not have its socket yet when the
+    # user's systemd units start. Wait for it rather than failing and leaving
+    # Restart= to paper over the race.
+    if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+        i=0
+        while [ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && [ "$i" -lt 30 ]; do
+            sleep 1
+            i=$((i + 1))
+        done
+    fi
+
     # Resolve whichever name this image uses.
     for candidate in chromium-browser chromium; do
         if command -v "$candidate" >/dev/null 2>&1; then
@@ -69,11 +80,18 @@ chromium)
         unclutter -idle 0 -root &
     fi
 
+    # Chromium remembers being killed and offers to restore tabs. On a screen with
+    # no keyboard that dialog just sits there.
+    PREFS="${CHROMIUM_PROFILE:-$HOME/.config/chromium}/Default/Preferences"
+    if [ -f "$PREFS" ]; then
+        sed -i 's/"exit_type":"[^"]*"/"exit_type":"Normal"/; s/"exited_cleanly":false/"exited_cleanly":true/' "$PREFS" || true
+    fi
+
     # A persistent profile directory on purpose: an incognito or throwaway profile
     # loses localStorage, and with it the board's identity.
     exec "$BROWSER" \
         --kiosk \
-        --user-data-dir=/var/lib/tablo-kiosk/profile \
+        --user-data-dir="${CHROMIUM_PROFILE:-/var/lib/tablo-kiosk/profile}" \
         --window-position=0,0 \
         --noerrdialogs \
         --disable-infobars \

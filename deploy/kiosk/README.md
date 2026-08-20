@@ -26,11 +26,22 @@ images already have it.
 
 ## Install
 
-On the Pi, with the repository checked out (or just this directory copied over):
+Two scopes, and the choice is not cosmetic.
+
+**Raspberry Pi OS desktop image** (lightdm autologin, labwc/Wayland — the usual
+case): the board has to run *inside* the logged-in user's session, because a system
+service cannot reach their Wayland socket. Run it as that user, without sudo:
 
 ```bash
 cd deploy/kiosk
-sudo TABLO_URL=http://<tablo-host>:3000/display DEVICE_ID=yard-gate-1 ./install.sh
+KIOSK_SCOPE=user KIOSK_RUNTIME=chromium   TABLO_URL=http://<tablo-host>/display DEVICE_ID=$(hostname) ./install.sh
+```
+
+**Lite image, no desktop**, with cog drawing straight to DRM/KMS:
+
+```bash
+cd deploy/kiosk
+sudo TABLO_URL=http://<tablo-host>/display DEVICE_ID=yard-gate-1 ./install.sh
 ```
 
 That installs the runtime, creates the service account, writes the config, enables
@@ -46,6 +57,7 @@ it.
 | `KIOSK_LANG` | empty | `en` / `pl` to stop the language alternating |
 | `RESTART_SCHEDULE` | `Sun 04:00` | systemd `OnCalendar` for the weekly restart |
 | `RESTART_MODE` | `service` | `service` restarts the board; `reboot` reboots the Pi |
+| `KIOSK_SCOPE` | `system` | `user` installs into the desktop user's systemd session |
 
 Watch it come up:
 
@@ -60,6 +72,20 @@ Change something later:
 sudo nano /etc/default/tablo-kiosk
 sudo systemctl restart tablo-kiosk
 ```
+
+## Two things that will bite you
+
+**The kiosk needs its own browser profile.** Point it at the desktop user's
+`~/.config/chromium` and Chromium sees a running instance, hands it the URL and
+exits 0 — which systemd reads as a clean stop, so the service goes inactive and the
+screen keeps showing whatever was there before. The installer uses
+`~/.local/share/tablo-kiosk-profile` in user scope for exactly this reason.
+
+**A relative path in a compositor autostart file silently does nothing.** A line
+like `./home/pi/kiosk.sh &` resolves against the session's working directory, so it
+never runs and nothing logs a complaint — the screen just stays blank until someone
+opens the browser by hand. That is what this systemd unit replaces; the installer
+does not touch such a file, so check for one.
 
 ## The weekly restart
 
