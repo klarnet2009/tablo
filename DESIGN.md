@@ -184,6 +184,18 @@ competing with it for attention, the second element is wrong.
 any surface in this product. Slate-500 measures 3.07:1 on a card and fails AA; it
 is permitted only for non-text decoration.
 
+**The Distance Floor Rule.** The driver board has a higher floor than the console,
+because it is read from across a yard rather than at arm's length: nothing on it
+below `{colors.text-label}`, which measures 14.1:1 on the board's black and 12.0:1
+on a row. AA is the bar for a screen you lean into; it is not the bar for one you
+squint at from a cab.
+
+**The Plate Is Never Tinted Rule.** The plate is always white — 17–18:1 on every row
+tint. Status belongs to the row: its background, its leading stripe, its label on
+the right. Colouring the plate by status once cost it 6.04:1 while loading against
+17.85:1 while waiting, a threefold spread in the one element that has to be readable
+from a cab.
+
 ## Typography
 
 **Display / Plate Font:** Geist Mono (with `ui-monospace`, `monospace`)

@@ -481,7 +481,7 @@ function DisplayContent() {
                     <div className="px-2 py-1.5 rounded" style={{ backgroundColor: '#7CBD6E' }}>
                         <Image src="/logo.png" alt="Company Logo" width={100} height={40} className="h-6 w-auto" unoptimized />
                     </div>
-                    <div className="text-base md:text-lg text-slate-400 uppercase tracking-wider">{t.queueStatus}</div>
+                    <div className="text-base md:text-lg text-slate-300 uppercase tracking-wider">{t.queueStatus}</div>
                 </div>
                 <div className="flex items-center gap-3">
                     {weather && (
@@ -497,7 +497,7 @@ function DisplayContent() {
             {/* Main Content Table - Optimized for readability from distance */}
             <div className="flex-1 flex flex-col gap-1">
                 {/* Table Header */}
-                <div className="grid grid-cols-8 gap-2 text-xs text-slate-400 font-bold uppercase px-2">
+                <div className="grid grid-cols-8 gap-2 text-sm text-slate-300 font-bold uppercase px-2">
                     <div className="col-span-6">{t.plateNumber}</div>
                     <div className="col-span-2 text-right">{t.dockStatus}</div>
                 </div>
@@ -521,7 +521,11 @@ function DisplayContent() {
                                 : 'bg-slate-900 border-l-4 border-slate-700'
                                 }`}
                         >
-                            <div className={`col-span-6 font-mono text-2xl font-bold tracking-wider overflow-hidden ${isLoading ? 'text-indigo-400' : isDocked ? 'text-blue-400' : isCalled ? 'text-green-400' : 'text-white'}`}>
+                            {/* Always white: 17-18:1 on every row tint. Status is the row's
+                                job (background, leading stripe, label on the right), not the
+                                plate's — tinting it cost 3x contrast on the one element that
+                                has to be readable from a cab. */}
+                            <div className="col-span-6 font-mono text-2xl font-bold tracking-wider overflow-hidden text-white">
                                 {/* Marquee scrolling text for truck/trailer/carrier */}
                                 {(() => {
                                     // Helper to check if value is valid (not empty, -, or whitespace)
@@ -598,7 +602,7 @@ function DisplayContent() {
                                         </>
                                     )
                                 ) : (
-                                    <span className="text-slate-400 font-medium">{t.waiting}</span>
+                                    <span className="text-slate-300 font-medium">{t.waiting}</span>
                                 )}
                             </div>
                         </div>
@@ -606,7 +610,7 @@ function DisplayContent() {
                 })}
 
                 {displayList.length === 0 && (
-                    <div className="flex-1 flex items-center justify-center text-slate-400 text-2xl md:text-4xl font-semibold">
+                    <div className="flex-1 flex items-center justify-center text-slate-300 text-2xl md:text-4xl font-semibold">
                         {t.noTrucks}
                     </div>
                 )}
@@ -636,7 +640,7 @@ export default function DisplayPage() {
     return (
         <Suspense fallback={
             <div className="w-[576px] h-[224px] bg-black text-white flex items-center justify-center">
-                <div className="text-slate-400">Loading...</div>
+                <div className="text-slate-300">Loading...</div>
             </div>
         }>
             <DisplayContent />

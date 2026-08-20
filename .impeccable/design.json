@@ -8,64 +8,169 @@
         "role": "neutral",
         "displayName": "Yard Night",
         "canonical": "#0f172a",
-        "tonalRamp": ["#020617", "#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1"]
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#475569",
+          "#64748b",
+          "#94a3b8",
+          "#cbd5e1"
+        ]
       },
       "yard-surface": {
         "role": "neutral",
         "displayName": "Yard Surface",
         "canonical": "#1e293b",
-        "tonalRamp": ["#020617", "#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#e2e8f0"]
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#475569",
+          "#64748b",
+          "#94a3b8",
+          "#e2e8f0"
+        ]
       },
       "signal-blue": {
         "role": "primary",
         "displayName": "Signal Blue",
         "canonical": "#3b82f6",
-        "tonalRamp": ["#172554", "#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#dbeafe"]
+        "tonalRamp": [
+          "#172554",
+          "#1e3a8a",
+          "#1d4ed8",
+          "#2563eb",
+          "#3b82f6",
+          "#60a5fa",
+          "#93c5fd",
+          "#dbeafe"
+        ]
       },
       "proceed-green": {
         "role": "secondary",
         "displayName": "Proceed Green",
         "canonical": "#16a34a",
-        "tonalRamp": ["#052e16", "#14532d", "#166534", "#15803d", "#16a34a", "#22c55e", "#86efac", "#dcfce7"]
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#166534",
+          "#15803d",
+          "#16a34a",
+          "#22c55e",
+          "#86efac",
+          "#dcfce7"
+        ]
       },
       "board-clock": {
         "role": "tertiary",
         "displayName": "Board Clock",
         "canonical": "#eab308",
-        "tonalRamp": ["#422006", "#713f12", "#854d0e", "#a16207", "#eab308", "#facc15", "#fde047", "#fef9c3"]
+        "tonalRamp": [
+          "#422006",
+          "#713f12",
+          "#854d0e",
+          "#a16207",
+          "#eab308",
+          "#facc15",
+          "#fde047",
+          "#fef9c3"
+        ]
       },
       "refuse-red": {
         "role": "tertiary",
         "displayName": "Refuse Red",
         "canonical": "#dc2626",
-        "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#fca5a5", "#fee2e2"]
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#ef4444",
+          "#fca5a5",
+          "#fee2e2"
+        ]
       },
       "brand-green": {
         "role": "secondary",
         "displayName": "Brand Green",
         "canonical": "#7CBD6E",
-        "tonalRamp": ["#1a2f16", "#2c4d26", "#3e6b36", "#508946", "#62a756", "#7CBD6E", "#a5d49b", "#d2e9cd"]
+        "tonalRamp": [
+          "#1a2f16",
+          "#2c4d26",
+          "#3e6b36",
+          "#508946",
+          "#62a756",
+          "#7CBD6E",
+          "#a5d49b",
+          "#d2e9cd"
+        ]
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "The plate in the driver board's call flash. The largest element in the product." },
-      "plate": { "displayName": "Plate", "purpose": "Truck plate wherever a visit appears in the console." },
-      "label": { "displayName": "Label", "purpose": "Form labels, column headers, status chips." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "The plate in the driver board's call flash. The largest element in the product."
+      },
+      "plate": {
+        "displayName": "Plate",
+        "purpose": "Truck plate wherever a visit appears in the console."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels, column headers, status chips."
+      }
     },
     "shadows": [
-      { "name": "float-panel", "value": "0 25px 50px -12px rgba(0,0,0,0.25)", "purpose": "Dialog panels and the login card: surfaces that genuinely float above the page." },
-      { "name": "lift-hover", "value": "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)", "purpose": "Dock choice buttons on hover. Nothing at rest carries a shadow." }
+      {
+        "name": "float-panel",
+        "value": "0 25px 50px -12px rgba(0,0,0,0.25)",
+        "purpose": "Dialog panels and the login card: surfaces that genuinely float above the page."
+      },
+      {
+        "name": "lift-hover",
+        "value": "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+        "purpose": "Dock choice buttons on hover. Nothing at rest carries a shadow."
+      }
     ],
     "motion": [
-      { "name": "sheet-in", "value": "0.2s ease-out", "purpose": "Mobile bottom sheet entering from below." },
-      { "name": "call-flash", "value": "5s hold, dock number at 2Hz", "purpose": "The board's one authored moment: a truck has been called." },
-      { "name": "marquee", "value": "8s linear infinite", "purpose": "Scrolls a plate/carrier string too long for the board row." },
-      { "name": "parking-warning", "value": "1s steps(1) infinite, 1 to 0.75 opacity", "purpose": "Periodic yard warning. Held at 1Hz, well under the three-flashes-per-second threshold." }
+      {
+        "name": "sheet-in",
+        "value": "0.2s ease-out",
+        "purpose": "Mobile bottom sheet entering from below."
+      },
+      {
+        "name": "call-flash",
+        "value": "5s hold, dock number at 2Hz",
+        "purpose": "The board's one authored moment: a truck has been called."
+      },
+      {
+        "name": "marquee",
+        "value": "8s linear infinite",
+        "purpose": "Scrolls a plate/carrier string too long for the board row."
+      },
+      {
+        "name": "parking-warning",
+        "value": "1s steps(1) infinite, 1 to 0.75 opacity",
+        "purpose": "Periodic yard warning. Held at 1Hz, well under the three-flashes-per-second threshold."
+      }
     ],
     "breakpoints": [
-      { "name": "md", "value": "768px" },
-      { "name": "lg", "value": "1024px" },
-      { "name": "xl", "value": "1280px" }
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
     ]
   },
   "components": [
@@ -145,13 +250,51 @@
       "One authored motion moment, and it belongs to the driver"
     ],
     "rules": [
-      { "name": "The Status Hue Rule", "body": "A status colour is declared once, in src/lib/status-machine.ts, as a chip pair (accent-300 on accent-500/15). No component re-derives it and no screen invents a hue for a state. Adding a status means adding a row there, not styling a badge.", "section": "colors" },
-      { "name": "The One Loud Thing Rule", "body": "Proceed Green at full strength appears in exactly one place: the call flash on the driver board. If a second element on any screen is competing with it for attention, the second element is wrong.", "section": "colors" },
-      { "name": "The Contrast Floor Rule", "body": "Text is never set below Text Secondary on any surface in this product. Slate-500 measures 3.07:1 on a card and fails AA; it is permitted only for non-text decoration.", "section": "colors" },
-      { "name": "The Monospace Is For Machines Rule", "body": "Monospace marks an identifier a machine issued: plates, order references, DNs, hashes. It is never used to make prose look technical.", "section": "typography" },
-      { "name": "The Plate Leads Rule", "body": "Wherever a visit appears, its plate is the first and largest thing in the container. Carrier, dock and time are support.", "section": "typography" },
-      { "name": "The Gloved Thumb Rule", "body": "Anything tapped on a phone gets a 44px minimum box. Controls that only exist on the admin desktop screens may drop to 24px, and nothing goes below that.", "section": "layout" },
-      { "name": "The Tonal Depth Rule", "body": "To make something look higher, raise its opacity or its border, not its shadow.", "section": "elevation" }
+      {
+        "name": "The Status Hue Rule",
+        "body": "A status colour is declared once, in src/lib/status-machine.ts, as a chip pair (accent-300 on accent-500/15). No component re-derives it and no screen invents a hue for a state. Adding a status means adding a row there, not styling a badge.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Loud Thing Rule",
+        "body": "Proceed Green at full strength appears in exactly one place: the call flash on the driver board. If a second element on any screen is competing with it for attention, the second element is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Contrast Floor Rule",
+        "body": "Text is never set below Text Secondary on any surface in this product. Slate-500 measures 3.07:1 on a card and fails AA; it is permitted only for non-text decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Monospace Is For Machines Rule",
+        "body": "Monospace marks an identifier a machine issued: plates, order references, DNs, hashes. It is never used to make prose look technical.",
+        "section": "typography"
+      },
+      {
+        "name": "The Plate Leads Rule",
+        "body": "Wherever a visit appears, its plate is the first and largest thing in the container. Carrier, dock and time are support.",
+        "section": "typography"
+      },
+      {
+        "name": "The Gloved Thumb Rule",
+        "body": "Anything tapped on a phone gets a 44px minimum box. Controls that only exist on the admin desktop screens may drop to 24px, and nothing goes below that.",
+        "section": "layout"
+      },
+      {
+        "name": "The Tonal Depth Rule",
+        "body": "To make something look higher, raise its opacity or its border, not its shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Distance Floor Rule",
+        "body": "The driver board has a higher floor than the console, because it is read from across a yard rather than at arm's length: nothing on it below Text Label, which measures 14.1:1 on the board's black and 12.0:1 on a row. AA is the bar for a screen you lean into; it is not the bar for one you squint at from a cab.",
+        "section": "colors"
+      },
+      {
+        "name": "The Plate Is Never Tinted Rule",
+        "body": "The plate is always white - 17-18:1 on every row tint. Status belongs to the row: its background, its leading stripe, its label on the right. Colouring the plate by status once cost it 6.04:1 while loading against 17.85:1 while waiting, a threefold spread in the one element that has to be readable from a cab.",
+        "section": "colors"
+      }
     ],
     "dos": [
       "Do take status colour from src/lib/status-machine.ts, and add new statuses there.",
@@ -166,7 +309,8 @@
       "Don't use a unicode glyph or emoji as an icon; lucide-react is the icon system.",
       "Don't flash anything faster than 3 Hz, and give every animation a prefers-reduced-motion alternative that keeps the information and drops the movement.",
       "Don't let a second element compete with the call flash for attention.",
-      "Don't make the driver board responsive; it is a fixed 576x224 panel on a wall."
+      "Don't make the driver board responsive; it is a fixed 576x224 panel on a wall.",
+      "Don't tint the plate by status; white is 17-18:1 on every row background and the row already carries the status."
     ]
   }
 }
