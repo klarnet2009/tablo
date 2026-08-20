@@ -31,28 +31,6 @@ body {
   animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Marquee/ticker animation for display page */
-@keyframes marquee {
-  0% {
-    transform: translateX(0);
-  }
-
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.marquee-container {
-  overflow: hidden;
-  white-space: nowrap;
-  width: 100%;
-}
-
-.marquee-text {
-  display: inline-block;
-  animation: marquee 8s linear infinite;
-}
-
 /* Periodic blink: blink for 5s every 15s (total 20s cycle) - sharp on/off */
 @keyframes periodic-blink {
 
@@ -238,8 +216,7 @@ body {
 
   /* The ticker duplicates its text so the scroll can loop seamlessly. With the
      scroll stopped, clip to the first copy instead of showing the seam. */
-  .animate-scroll-warning,
-  .marquee-text {
+  .animate-scroll-warning {
     animation: none;
     display: block;
     max-width: 100%;

@@ -6,6 +6,7 @@ import { Thermometer, Scale, TriangleAlert } from 'lucide-react';
 import Image from 'next/image';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
 import { shouldReloadForBuild } from '@/lib/build-id';
+import { boardPlateText } from '@/lib/board-plate';
 
 interface TruckVisit {
     id: string;
@@ -448,24 +449,27 @@ function DisplayContent() {
                 <>
                     {/* Black background to hide previous content */}
                     <div className="absolute inset-0 z-40 bg-black"></div>
-                    {/* Solid green overlay - no animation */}
-                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-green-600 via-green-500 to-green-700">
+                    {/* One flat green, not a three-stop gradient: a status colour is one
+                        value, and the gradient made the plate's contrast depend on where
+                        the glyph happened to sit — 2.22:1 over the middle stop, 3.22:1 at
+                        the edge. The green is the signal you recognise from across the
+                        yard; it is not the surface you read text off. */}
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-green-600">
                         <div className="flex flex-col items-center gap-1 w-full px-4">
-                            {/* MAIN: Plate Number - Large and prominent */}
-                            {/* Fallback: truck plate -> trailer plate -> carrier */}
-                            <div className="text-6xl font-mono font-black tracking-wider text-white drop-shadow-2xl">
-                                {(() => {
-                                    const isValid = (val?: string) => val && val.trim() && val.trim() !== '-' && val.trim() !== '—' && val.trim() !== 'N/A';
-                                    if (isValid(currentFlash.truckPlate)) return currentFlash.truckPlate;
-                                    if (isValid(currentFlash.trailerPlate)) return currentFlash.trailerPlate;
-                                    if (isValid(currentFlash.carrier)) return currentFlash.carrier;
-                                    return 'TRUCK';
-                                })()}
-                            </div>
+                            {/* Everything readable sits on black, at 21:1. The plate used to
+                                be white directly on the green — 2.22:1, the worst number on
+                                a board whose own Distance Floor Rule is 14.1:1, on the one
+                                frame the driver has been waiting for. */}
+                            <div className="bg-black rounded-lg px-6 py-2 flex flex-col items-center">
+                                {/* Destination label */}
+                                <div className="text-lg text-white uppercase tracking-widest font-bold">
+                                    {currentFlash.assignedDock?.dockType === 'SCALES' ? flashT.goToScales : flashT.proceedTo}
+                                </div>
 
-                            {/* Destination label */}
-                            <div className="text-lg text-green-100 uppercase tracking-widest font-bold mt-2">
-                                {currentFlash.assignedDock?.dockType === 'SCALES' ? flashT.goToScales : flashT.proceedTo}
+                                {/* MAIN: the plate. Largest thing in the product. */}
+                                <div className="text-6xl font-mono font-black tracking-wider text-white">
+                                    {boardPlateText(currentFlash).primary}
+                                </div>
                             </div>
 
                             {/* Dock/Scales indicator - sharp blinking badge */}
@@ -479,8 +483,12 @@ function DisplayContent() {
                                 }
                             </div>
 
-                            {/* Action Text */}
-                            <div className="text-xl font-black text-white uppercase tracking-widest animate-pulse drop-shadow-lg mt-1">
+                            {/* Action text. Black on the green reads at 6.52:1 where white
+                                read at 2.22:1, and the pulse is gone: the blinking badge
+                                above is the flash's one authored motion, and a second
+                                animation inside the same five seconds only splits the
+                                attention this frame exists to capture. */}
+                            <div className="text-xl font-black text-black uppercase tracking-widest mt-1">
                                 {flashT.proceedNow}
                             </div>
                         </div>
@@ -516,11 +524,12 @@ function DisplayContent() {
                 </div>
 
                 {/* Rows */}
-                {displayList.map((visit, idx) => {
+                {displayList.map((visit) => {
                     const isCalled = visit.status === 'CALLED';
                     const isDocked = visit.status === 'DOCKED';
                     const isLoading = visit.status === 'IN_SERVICE';
                     const isActive = isCalled || isDocked || isLoading;
+                    const plate = boardPlateText(visit);
 
                     return (
                         <div
@@ -537,33 +546,25 @@ function DisplayContent() {
                             {/* Always white: 17-18:1 on every row tint. Status is the row's
                                 job (background, leading stripe, label on the right), not the
                                 plate's — tinting it cost 3x contrast on the one element that
-                                has to be readable from a cab. */}
-                            <div className="col-span-6 font-mono text-2xl font-bold tracking-wider overflow-hidden text-white">
-                                {/* Marquee scrolling text for truck/trailer/carrier */}
-                                {(() => {
-                                    // Helper to check if value is valid (not empty, -, or whitespace)
-                                    const isValid = (val?: string) => val && val.trim() && val.trim() !== '-' && val.trim() !== '—' && val.trim() !== 'N/A';
+                                has to be readable from a cab.
 
-                                    const parts = [
-                                        isValid(visit.truckPlate) ? visit.truckPlate : null,
-                                        isValid(visit.trailerPlate) ? visit.trailerPlate : null,
-                                        isValid(visit.carrier) ? visit.carrier : null,
-                                    ].filter(Boolean);
-
-                                    // If no truck plate, just show carrier or "UNKNOWN"
-                                    const text = parts.length > 0 ? parts.join(' | ') : 'UNKNOWN';
-                                    const needsScroll = text.length > (isActive ? 12 : 16);
-
-                                    return needsScroll ? (
-                                        <div key={`marquee-${visit.id}`} className="marquee-container">
-                                            <span className="marquee-text" style={{ animationDelay: `${idx * 0.5}s` }}>
-                                                {text}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{text}
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <span>{text}</span>
-                                    );
-                                })()}
+                                Pinned, never scrolled. The plate used to share an 8s marquee
+                                with the carrier name, so the one fact the row exists to show
+                                was off-screen for most of every cycle. With the carrier gone
+                                a plate and a trailer plate fit the column outright, and the
+                                driver can read the row at any instant rather than waiting for
+                                the loop to come round. */}
+                            <div className="col-span-6 flex items-baseline gap-3 overflow-hidden text-white">
+                                <span className="font-mono text-2xl font-bold tracking-wider shrink-0">
+                                    {plate.primary}
+                                </span>
+                                {plate.secondary && (
+                                    // The trailer plate: how a driver with a swapped trailer
+                                    // recognises themselves. Support, not identity.
+                                    <span className="font-mono text-base font-bold tracking-wider text-slate-300 truncate">
+                                        {plate.secondary}
+                                    </span>
+                                )}
                             </div>
                             <div className="col-span-2 text-right flex items-center justify-end gap-2 whitespace-nowrap">
                                 {isLoading && visit.assignedDock ? (
