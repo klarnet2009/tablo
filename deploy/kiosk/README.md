@@ -26,21 +26,77 @@ images already have it.
 
 ## Install
 
+On the Pi, with the repository checked out (or just this directory copied over):
+
 ```bash
-sudo apt install cog          # or: sudo apt install chromium-browser
-sudo useradd --system --create-home --groups video,render,input tablo
-sudo install -m 755 deploy/kiosk/tablo-kiosk.sh /usr/local/bin/tablo-kiosk.sh
-sudo install -m 644 deploy/kiosk/tablo-kiosk.default /etc/default/tablo-kiosk
-sudo install -m 644 deploy/kiosk/tablo-kiosk.service /etc/systemd/system/
-sudo nano /etc/default/tablo-kiosk        # set TABLO_URL and DEVICE_ID
-sudo systemctl enable --now tablo-kiosk
+cd deploy/kiosk
+sudo TABLO_URL=http://<tablo-host>:3000/display DEVICE_ID=yard-gate-1 ./install.sh
 ```
+
+That installs the runtime, creates the service account, writes the config, enables
+the board at boot and schedules the weekly restart. It is idempotent: re-run it
+after pulling a change, and it will leave `/etc/default/tablo-kiosk` as you edited
+it.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `TABLO_URL` | *required* | Full URL of the board. No default: a wrong one is a silent black screen |
+| `DEVICE_ID` | the Pi's hostname | Identity in *Settings → Displays* |
+| `KIOSK_RUNTIME` | `cog` | `cog` or `chromium` |
+| `KIOSK_LANG` | empty | `en` / `pl` to stop the language alternating |
+| `RESTART_SCHEDULE` | `Sun 04:00` | systemd `OnCalendar` for the weekly restart |
+| `RESTART_MODE` | `service` | `service` restarts the board; `reboot` reboots the Pi |
 
 Watch it come up:
 
 ```bash
 journalctl -u tablo-kiosk -f
+systemctl list-timers tablo-kiosk-restart.timer
 ```
+
+Change something later:
+
+```bash
+sudo nano /etc/default/tablo-kiosk
+sudo systemctl restart tablo-kiosk
+```
+
+## The weekly restart
+
+A screen that runs for months accumulates renderer memory. The installer adds
+`tablo-kiosk-restart.timer`, which by default restarts the **board process** every
+Sunday at 04:00 — not the whole Pi. That clears the renderer without risking a
+machine that does not come back up, and 04:00 keeps it out of a shift.
+
+`Persistent=true` catches up if the Pi was off at the scheduled moment, and a 5
+minute random delay stops a wall of screens restarting in lockstep.
+
+For a full reboot instead — worth it if the Pi has other reasons to drift, like a
+flaky USB or a clock that needs re-syncing:
+
+```bash
+sudo RESTART_MODE=reboot TABLO_URL=... ./install.sh
+```
+
+## Optional OS tweaks
+
+Not done by the installer, because they change a machine beyond the board. Apply
+deliberately:
+
+```bash
+# Console blanking off (matters for cog on DRM, which has no X to tell to stop).
+sudo sed -i 's/$/ consoleblank=0/' /boot/firmware/cmdline.txt   # single line, reboot after
+
+# A display Pi usually needs neither.
+sudo systemctl disable --now bluetooth avahi-daemon
+
+# Quiet boot: no rainbow splash, no kernel log on the panel.
+# Add "disable_splash=1" to /boot/firmware/config.txt and "quiet logo.nologo" to cmdline.txt
+```
+
+Check `dtoverlay=vc4-kms-v3d` is present in `/boot/firmware/config.txt` — `cog
+--platform=drm` needs the KMS driver. Recent Raspberry Pi OS images have it by
+default.
 
 ## DEVICE_ID matters
 

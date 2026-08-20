@@ -91,8 +91,15 @@ required either way. Set `DEVICE_ID` so the screen keeps one identity in
 *Settings → Displays* across reflashes. See
 [deploy/kiosk/README.md](deploy/kiosk/README.md).
 
-Pass `?deviceId=<name>` to pin the identity and `?lang=en|pl` to stop the language
-alternating.
+One command on the Pi:
+
+```bash
+sudo TABLO_URL=http://<tablo-host>:3000/display DEVICE_ID=yard-gate-1   deploy/kiosk/install.sh
+```
+
+It installs the runtime, enables the board at boot and schedules a weekly restart
+(Sunday 04:00 by default). Pass `?deviceId=<name>` / `?lang=en|pl` on the URL to pin
+the identity and stop the language alternating.
 
 ## LDAP / Active Directory
 
