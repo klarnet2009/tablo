@@ -9,6 +9,7 @@
  */
 
 import prisma from './prisma';
+import { nextRevision, shouldRefresh } from './display-freshness.ts';
 
 export interface ConnectionInfo {
     deviceId: string;
@@ -36,19 +37,31 @@ export interface ConnectionSnapshot {
     clientRevisionAt: Date | null;
 }
 
-const BROADCAST_INTERVAL_MS = 3000;
+// How often the loop wakes up. It only touches the database when a mutation marked
+// the data dirty, or when the safety net is due, so a quiet yard costs nothing.
+const TICK_INTERVAL_MS = 3000;
+// Catches changes made outside the application: a direct database edit, a restored
+// backup, anything that never called markVisitsDirty().
+const SAFETY_NET_MS = 30_000;
+// Liveness ping. Carries the current revision, so the client can detect a stalled
+// stream without polling a second endpoint.
+const PING_INTERVAL_MS = 15_000;
 
 type GlobalState = {
     displayRegistry?: Map<string, ConnectionInfo>;
     displayBroadcastInterval?: NodeJS.Timeout;
     displaySchemaReady?: boolean;
-    // Monotonic revision counter for the visits payload.
-    // Bumped whenever the broadcast loop sees data that differs from the
-    // previously broadcast JSON. The client polls /api/display/revision
-    // and compares against the revision embedded in each SSE payload to
-    // detect "connection is alive but delivery stopped" staleness.
+    // Monotonic revision counter for the visits payload. Bumped only when the data
+    // actually differs from what was last broadcast. It rides along on every ping,
+    // so a client can tell "the stream is alive but payloads stopped arriving"
+    // without polling a second endpoint.
     displayVisitsRevision?: number;
     displayVisitsLastJson?: string;
+    // Set by markVisitsDirty() from the routes that change visits; consumed by the
+    // broadcast loop on its next tick.
+    displayVisitsDirty?: boolean;
+    displayVisitsFetchedAt?: number;
+    displayPingInterval?: NodeJS.Timeout;
 };
 
 const globalState = globalThis as unknown as GlobalState;
@@ -99,16 +112,33 @@ async function fetchVisits() {
     });
 }
 
-function buildVisitsPayload(visits: unknown): string {
+function buildVisitsPayload(visits: unknown): { payload: string; changed: boolean } {
     const visitsJson = JSON.stringify(visits);
-    if (visitsJson !== globalState.displayVisitsLastJson) {
-        globalState.displayVisitsRevision = (globalState.displayVisitsRevision ?? 0) + 1;
-        globalState.displayVisitsLastJson = visitsJson;
-    }
-    const revision = globalState.displayVisitsRevision ?? 0;
+    const { revision, changed } = nextRevision(
+        globalState.displayVisitsLastJson ?? null,
+        globalState.displayVisitsRevision ?? 0,
+        visitsJson,
+    );
+    globalState.displayVisitsRevision = revision;
+    globalState.displayVisitsLastJson = visitsJson;
+
     // Payload shape: { revision, visits }. Client falls back to treating the
     // root as the visits array for backwards compatibility during rolling deploys.
-    return `event: visits\ndata: {"revision":${revision},"visits":${visitsJson}}\n\n`;
+    return {
+        payload: `event: visits\ndata: {"revision":${revision},"visits":${visitsJson}}\n\n`,
+        changed,
+    };
+}
+
+/**
+ * Tell the broadcast loop that the visits list changed.
+ *
+ * Called from every route that mutates a visit. Without it the loop would have to
+ * query the database on a timer to find out, which is what it used to do 28,800
+ * times a day whether anything had changed or not.
+ */
+export function markVisitsDirty(): void {
+    globalState.displayVisitsDirty = true;
 }
 
 export function getVisitsRevision(): number {
@@ -131,23 +161,55 @@ export function ackClientRevision(deviceId: string, revision: number): void {
 }
 
 function startBroadcastLoopIfNeeded() {
-    if (globalState.displayBroadcastInterval) return;
-    globalState.displayBroadcastInterval = setInterval(async () => {
-        const reg = registry();
-        if (reg.size === 0) return;
-        try {
-            const visits = await fetchVisits();
-            broadcast(buildVisitsPayload(visits));
-        } catch (err) {
-            console.error('[display-registry] broadcast failed:', err);
-        }
-    }, BROADCAST_INTERVAL_MS);
+    if (!globalState.displayBroadcastInterval) {
+        globalState.displayBroadcastInterval = setInterval(async () => {
+            if (registry().size === 0) return;
+
+            const dirty = globalState.displayVisitsDirty ?? false;
+            const sinceLastFetchMs = Date.now() - (globalState.displayVisitsFetchedAt ?? 0);
+            if (!shouldRefresh({ dirty, sinceLastFetchMs, safetyNetMs: SAFETY_NET_MS })) return;
+
+            globalState.displayVisitsDirty = false;
+            try {
+                const visits = await fetchVisits();
+                globalState.displayVisitsFetchedAt = Date.now();
+                const { payload, changed } = buildVisitsPayload(visits);
+                // Only put bytes on the wire when the queue actually moved. Liveness is
+                // the ping's job, not the payload's.
+                if (changed) broadcast(payload);
+            } catch (err) {
+                console.error('[display-registry] broadcast failed:', err);
+            }
+        }, TICK_INTERVAL_MS);
+    }
+
+    if (!globalState.displayPingInterval) {
+        // One shared timer instead of one per connection.
+        globalState.displayPingInterval = setInterval(() => {
+            const revision = globalState.displayVisitsRevision ?? 0;
+            const payload = `event: ping\ndata: {"revision":${revision}}\n\n`;
+            const bytes = encoder.encode(payload);
+            for (const [deviceId, conn] of registry()) {
+                try {
+                    conn.controller.enqueue(bytes);
+                    conn.lastHeartbeat = new Date();
+                } catch {
+                    unregister(deviceId);
+                }
+            }
+        }, PING_INTERVAL_MS);
+    }
 }
 
 function stopBroadcastLoopIfIdle() {
-    if (registry().size === 0 && globalState.displayBroadcastInterval) {
+    if (registry().size > 0) return;
+    if (globalState.displayBroadcastInterval) {
         clearInterval(globalState.displayBroadcastInterval);
         globalState.displayBroadcastInterval = undefined;
+    }
+    if (globalState.displayPingInterval) {
+        clearInterval(globalState.displayPingInterval);
+        globalState.displayPingInterval = undefined;
     }
 }
 
@@ -183,44 +245,30 @@ export function unregister(deviceId: string): void {
     stopBroadcastLoopIfIdle();
 }
 
-export function sendHeartbeat(deviceId: string): void {
-    const conn = registry().get(deviceId);
-    if (!conn) return;
-    try {
-        conn.controller.enqueue(encoder.encode(': heartbeat\n\n'));
-        conn.lastHeartbeat = new Date();
-    } catch {
-        unregister(deviceId);
-    }
-}
-
 export async function sendInitialSnapshot(deviceId: string): Promise<void> {
     const conn = registry().get(deviceId);
     if (!conn) return;
     try {
         const visits = await fetchVisits();
-        conn.controller.enqueue(encoder.encode(buildVisitsPayload(visits)));
+        globalState.displayVisitsFetchedAt = Date.now();
+        conn.controller.enqueue(encoder.encode(buildVisitsPayload(visits).payload));
         conn.lastPayloadAt = new Date();
     } catch (err) {
         console.error('[display-registry] initial snapshot failed:', err);
     }
 }
 
-export async function listConnections(): Promise<ConnectionSnapshot[]> {
-    await ensureDisplaySchema();
-    const reg = registry();
-    if (reg.size === 0) return [];
-
-    const deviceIds = Array.from(reg.keys());
-    const rows = await prisma.display.findMany({
-        where: { deviceId: { in: deviceIds } },
-        select: { deviceId: true, name: true },
-    });
-    const nameByDeviceId = new Map(rows.map(r => [r.deviceId, r.name]));
-
-    return Array.from(reg.values()).map(c => ({
+/**
+ * The live connections, straight from memory.
+ *
+ * Names are deliberately not resolved here: the only caller already queries the
+ * Display table for the full list, so looking them up again was a second query on
+ * every poll of the back-office page.
+ */
+export function listConnections(): ConnectionSnapshot[] {
+    return Array.from(registry().values()).map(c => ({
         deviceId: c.deviceId,
-        name: nameByDeviceId.get(c.deviceId) ?? null,
+        name: null,
         connectedAt: c.connectedAt,
         lastHeartbeat: c.lastHeartbeat,
         lastPayloadAt: c.lastPayloadAt,

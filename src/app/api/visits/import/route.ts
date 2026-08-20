@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { markVisitsDirty } from '@/lib/display-registry';
 import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
 
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        markVisitsDirty();
         return NextResponse.json({
             success: true,
             imported: createdVisits.length,

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { markVisitsDirty } from '@/lib/display-registry';
 import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
 
@@ -39,6 +40,7 @@ export async function DELETE() {
             metadata: { deleted: result.count, visits: doomed },
         });
 
+        markVisitsDirty();
         return NextResponse.json({
             success: true,
             deleted: result.count,

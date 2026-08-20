@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { markVisitsDirty } from '@/lib/display-registry';
 import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
 import { claimDock, releaseDock } from '@/lib/docks';
@@ -165,6 +166,7 @@ export async function PATCH(
                 metadata: { dockId, notes, reason: 'Terminal state - visit deleted' },
             });
 
+            markVisitsDirty();
             return NextResponse.json({ success: true, deleted: true, status: newStatus });
         }
 
@@ -198,6 +200,7 @@ export async function PATCH(
             metadata: { dockId, notes },
         });
 
+        markVisitsDirty();
         return NextResponse.json(updatedVisit);
     } catch (error) {
         if (error instanceof z.ZodError) {

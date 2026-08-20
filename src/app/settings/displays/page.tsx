@@ -30,7 +30,8 @@ interface DisplaysResponse {
     items: DisplayItem[];
 }
 
-const POLL_INTERVAL_MS = 3000;
+// 8s, not 3s: this is a monitoring page, and each poll is a database query.
+const POLL_INTERVAL_MS = 8000;
 
 function formatRelative(iso: string | null): string {
     if (!iso) return '—';

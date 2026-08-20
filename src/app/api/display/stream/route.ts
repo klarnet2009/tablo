@@ -4,15 +4,12 @@ import {
     ensureDisplaySchema,
     register,
     unregister,
-    sendHeartbeat,
     sendInitialSnapshot,
     type ConnectionInfo,
 } from '@/lib/display-registry';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-const HEARTBEAT_INTERVAL_MS = 15000;
 
 // GET /api/display/stream?deviceId=<uuid> — public SSE stream for display boards
 export async function GET(request: NextRequest) {
@@ -36,8 +33,6 @@ export async function GET(request: NextRequest) {
         null;
     const userAgent = request.headers.get('user-agent') || null;
 
-    let heartbeatTimer: NodeJS.Timeout | null = null;
-
     const stream = new ReadableStream<Uint8Array>({
         async start(controller) {
             const now = new Date();
@@ -53,15 +48,11 @@ export async function GET(request: NextRequest) {
             await register(info);
             await sendInitialSnapshot(deviceId);
 
-            heartbeatTimer = setInterval(() => sendHeartbeat(deviceId), HEARTBEAT_INTERVAL_MS);
-
-            request.signal.addEventListener('abort', () => {
-                if (heartbeatTimer) clearInterval(heartbeatTimer);
-                unregister(deviceId);
-            });
+            // The liveness ping is one shared timer in display-registry, iterating the
+            // registry, rather than a timer per connection.
+            request.signal.addEventListener('abort', () => unregister(deviceId));
         },
         cancel() {
-            if (heartbeatTimer) clearInterval(heartbeatTimer);
             unregister(deviceId);
         },
     });

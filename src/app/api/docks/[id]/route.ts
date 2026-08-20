@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { markVisitsDirty } from '@/lib/display-registry';
 import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
 import { z } from 'zod';
@@ -45,6 +46,7 @@ export async function PATCH(
             afterState: dock,
         });
 
+        markVisitsDirty();
         return NextResponse.json(dock);
     } catch (error) {
         if (error instanceof z.ZodError) {

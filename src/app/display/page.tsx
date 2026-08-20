@@ -45,14 +45,16 @@ function DisplayContent() {
     const t = getTranslations(locale);
 
     const [currentTime, setCurrentTime] = useState<string>('');
+    // Single 1s tick. Drives the clock, the connection dot and the flash language.
+    const [nowTs, setNowTs] = useState(() => Date.now());
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [showParkingWarning, setShowParkingWarning] = useState(false);
 
     useEffect(() => {
-        // Update clock every second
         const timer = setInterval(() => {
             const now = new Date();
             setCurrentTime(now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+            setNowTs(now.getTime());
         }, 1000);
         return () => clearInterval(timer);
     }, []);
@@ -154,29 +156,41 @@ function DisplayContent() {
 
     // Real-time feed via Server-Sent Events.
     //   - EventSource auto-reconnects on transport errors.
-    //   - Server sends a heartbeat comment every 15s so proxies keep the TCP open.
-    //   - A visits event carries the full active queue snapshot.
-    //   - The watchdog below is a last-resort: if we go >90s without any payload
-    //     it forces a full page reload.
+    //   - `visits` carries the active queue, and is sent only when it changes.
+    //   - `ping` arrives every 15s carrying the server's current revision. It is a
+    //     real event, not an SSE comment, so this client can actually observe it:
+    //     that is what proves the stream is alive on a yard where nothing moves,
+    //     and what lets us notice a stream that is open but no longer delivering.
+    //   - The 90s watchdog is the last resort and forces a full reload.
     const [visits, setVisits] = useState<TruckVisit[]>([]);
     const [sseOpen, setSseOpen] = useState(false);
     const [lastSuccessTime, setLastSuccessTime] = useState<Date>(new Date());
-    const [, setNowTick] = useState(0);
 
     const HARD_RELOAD_AFTER_MS = 90000;
-    const STALE_THRESHOLD_SEC = 15;
-    // Freshness watchdog constants: poll the server's current payload revision
-    // every FRESHNESS_POLL_MS. If the client's stored revision is behind the
-    // server's AND stays behind for longer than FRESHNESS_RECONNECT_AFTER_MS,
-    // force a soft SSE reconnect. Covers the case where SSE stays OPEN but
-    // delivery silently stops (proxy buffer, socket hang, HTTP/2 mux stall).
-    const FRESHNESS_POLL_MS = 10000;
+    // Two missed pings. Pings arrive every 15s, so 35s tolerates one lost ping
+    // without turning the status dot red on a perfectly healthy screen.
+    const STALE_THRESHOLD_SEC = 35;
+    // If a ping says the server is ahead of us and the gap survives this long, the
+    // stream is open but no longer delivering payloads: reconnect.
     const FRESHNESS_RECONNECT_AFTER_MS = 20000;
 
     const deviceIdRef = useRef<string>('');
     const esRef = useRef<EventSource | null>(null);
     const connectRef = useRef<(() => void) | null>(null);
     const clientRevisionRef = useRef<number | null>(null);
+    const staleSinceRef = useRef<number | null>(null);
+
+    // Fire-and-forget. keepalive lets it survive the page being closed.
+    const sendAck = (revision: number) => {
+        try {
+            fetch('/api/display/ack', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId: deviceIdRef.current, revision }),
+                keepalive: true,
+            }).catch(() => { /* swallow */ });
+        } catch { /* swallow */ }
+    };
 
     useEffect(() => {
         // Obtain a stable deviceId per browser — used by back-office to
@@ -214,32 +228,56 @@ function DisplayContent() {
             es.addEventListener('visits', (ev) => {
                 try {
                     const parsed = JSON.parse((ev as MessageEvent).data);
-                    // New payload shape is { revision, visits }. Tolerate the old
-                    // shape (bare array) in case of mixed deploy.
+                    // Payload shape is { revision, visits }. Tolerate a bare array in
+                    // case of a mixed deploy.
                     const visitsArray: TruckVisit[] = Array.isArray(parsed)
                         ? parsed
                         : Array.isArray(parsed?.visits) ? parsed.visits : [];
                     if (typeof parsed?.revision === 'number') {
                         clientRevisionRef.current = parsed.revision;
-                        // Fire-and-forget ACK so the server can surface true
-                        // data freshness on /settings/displays. keepalive lets
-                        // the POST survive if the page is being closed.
-                        try {
-                            fetch('/api/display/ack', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    deviceId: deviceIdRef.current,
-                                    revision: parsed.revision,
-                                }),
-                                keepalive: true,
-                            }).catch(() => { /* swallow */ });
-                        } catch { /* swallow */ }
+                        // Acknowledge immediately so the back office sees the screen
+                        // caught up without waiting for the next ping.
+                        sendAck(parsed.revision);
                     }
                     setVisits(visitsArray);
                     setLastSuccessTime(new Date());
                 } catch (err) {
                     console.error('Failed to parse visits SSE payload:', err);
+                }
+            });
+
+            // Liveness. Arrives every 15s whether or not the queue moved, which is
+            // what makes it safe for the server to stay silent when nothing changes.
+            es.addEventListener('ping', (ev) => {
+                setLastSuccessTime(new Date());
+                try {
+                    const { revision } = JSON.parse((ev as MessageEvent).data);
+                    if (typeof revision !== 'number') return;
+
+                    const clientRev = clientRevisionRef.current;
+                    // Report where we are, so /settings/displays can tell a live screen
+                    // from a connection object nobody is looking at.
+                    sendAck(clientRev ?? revision);
+
+                    if (clientRev === null || clientRev >= revision) {
+                        staleSinceRef.current = null;
+                        return;
+                    }
+
+                    // The server has newer data than we were given: the stream is open
+                    // but payloads are not arriving.
+                    if (staleSinceRef.current === null) {
+                        staleSinceRef.current = Date.now();
+                        console.log(`[display] freshness drift: client rev=${clientRev}, server rev=${revision}`);
+                        return;
+                    }
+                    if (Date.now() - staleSinceRef.current > FRESHNESS_RECONNECT_AFTER_MS) {
+                        console.log('[display] stale too long, forcing SSE reconnect');
+                        staleSinceRef.current = null;
+                        connectRef.current?.();
+                    }
+                } catch {
+                    // A malformed ping is still proof of life; nothing else to do.
                 }
             });
         };
@@ -263,91 +301,18 @@ function DisplayContent() {
         };
     }, []);
 
-    // Freshness watchdog. Independent of the SSE transport: asks the server
-    // "what's your current visits revision?" every 10s. If the answer doesn't
-    // match what we last received AND the gap persists for >20s, we assume
-    // silent delivery failure (connection looks fine, data is not arriving)
-    // and force a soft reconnect. Anything worse is handled by the 90s
-    // hard-reload watchdog above.
-    useEffect(() => {
-        let firstStaleAt: number | null = null;
-        let cancelled = false;
-
-        const poll = async () => {
-            try {
-                const res = await fetch('/api/display/revision', {
-                    cache: 'no-store',
-                    signal: AbortSignal.timeout(5000),
-                });
-                if (cancelled || !res.ok) return;
-                const body = await res.json();
-                const serverRev = typeof body?.revision === 'number' ? body.revision : null;
-                const clientRev = clientRevisionRef.current;
-
-                // No signal yet (no data ever received, or old server without
-                // revision field) — skip.
-                if (serverRev === null || clientRev === null) {
-                    firstStaleAt = null;
-                    return;
-                }
-
-                if (serverRev === clientRev) {
-                    // In sync. Reset stale timer.
-                    firstStaleAt = null;
-                    return;
-                }
-
-                // Out of sync. Start / continue the stale timer.
-                if (firstStaleAt === null) {
-                    firstStaleAt = Date.now();
-                    console.log(
-                        `[display] freshness drift: client rev=${clientRev}, server rev=${serverRev}`
-                    );
-                    return;
-                }
-
-                if (Date.now() - firstStaleAt > FRESHNESS_RECONNECT_AFTER_MS) {
-                    console.log('[display] stale too long, forcing SSE reconnect');
-                    firstStaleAt = null;
-                    connectRef.current?.();
-                }
-            } catch {
-                // Transient network errors are fine — 90s watchdog covers the worst case.
-            }
-        };
-
-        const timer = setInterval(poll, FRESHNESS_POLL_MS);
-        return () => {
-            cancelled = true;
-            clearInterval(timer);
-        };
-    }, []);
-
-    // Hard-reload watchdog: fires only if SSE delivers nothing for 90s.
-    useEffect(() => {
-        const watchdog = setInterval(() => {
-            const silenceMs = Date.now() - lastSuccessTime.getTime();
-            if (silenceMs > HARD_RELOAD_AFTER_MS) {
-                console.log('Display watchdog: SSE silent for 90s, reloading page...');
-                window.location.reload();
-            }
-        }, 10000);
-        return () => clearInterval(watchdog);
-    }, [lastSuccessTime]);
-
-    // 1s tick to keep the status dot reactive to elapsed time.
-    const [nowTs, setNowTs] = useState(() => Date.now());
-    useEffect(() => {
-        const t = setInterval(() => {
-            setNowTick(n => (n + 1) & 0xffff);
-            setNowTs(Date.now());
-        }, 1000);
-        return () => clearInterval(t);
-    }, []);
-
-    // Derived from ticking state rather than a Date.now() call during render, which
-    // makes the render impure and its output unstable across re-renders.
     const secondsSinceLastSuccess = Math.floor((nowTs - lastSuccessTime.getTime()) / 1000);
+
+    // Last resort: the stream produced neither a payload nor a ping for 90s, so the
+    // soft reconnect above has not helped either. Checked off the shared tick rather
+    // than from a timer of its own.
+    useEffect(() => {
+        if (secondsSinceLastSuccess * 1000 > HARD_RELOAD_AFTER_MS) {
+            console.log('Display watchdog: stream silent for 90s, reloading page...');
+            window.location.reload();
+        }
+    }, [secondsSinceLastSuccess]);
+
     const isConnectionLost = !sseOpen || secondsSinceLastSuccess > STALE_THRESHOLD_SEC;
 
     // Filter for display:

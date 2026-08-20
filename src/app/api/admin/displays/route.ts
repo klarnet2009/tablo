@@ -12,45 +12,10 @@ import {
     ensureDisplaySchema,
     listConnections,
     getVisitsRevision,
-    type ConnectionSnapshot,
 } from '@/lib/display-registry';
+import { computeDataStatus, type DataStatus } from '@/lib/display-freshness';
 
 export const dynamic = 'force-dynamic';
-
-// Thresholds used to classify each online display's data freshness.
-// Broadcast cadence is 3s, so these are generous to avoid false positives.
-const STALE_ACK_AGE_MS = 20_000;   // client behind + ack older than this → stale
-const NO_ACK_GRACE_MS = 15_000;    // fresh connect gets this long to send first ack
-const NO_ACK_STALE_MS = 30_000;    // any connection with no ack this long → stale
-
-type DataStatus = 'synced' | 'lagging' | 'stale' | 'unknown';
-
-function computeDataStatus(
-    conn: ConnectionSnapshot,
-    serverRevision: number,
-    now: number,
-): DataStatus {
-    const connectionAgeMs = now - conn.connectedAt.getTime();
-    const clientRev = conn.clientRevision;
-    const ackAgeMs = conn.clientRevisionAt
-        ? now - conn.clientRevisionAt.getTime()
-        : null;
-
-    // No ack yet
-    if (clientRev === null || ackAgeMs === null) {
-        if (connectionAgeMs < NO_ACK_GRACE_MS) return 'unknown';
-        return 'stale';
-    }
-
-    // Any connection silent for too long is stale regardless of revision match.
-    if (ackAgeMs > NO_ACK_STALE_MS) return 'stale';
-
-    if (clientRev === serverRevision) return 'synced';
-
-    // Client is behind the server
-    if (ackAgeMs > STALE_ACK_AGE_MS) return 'stale';
-    return 'lagging';
-}
 
 export async function GET() {
     try {
@@ -59,19 +24,18 @@ export async function GET() {
 
         await ensureDisplaySchema();
 
-        const [known, live] = await Promise.all([
-            prisma.display.findMany({
-                select: {
-                    id: true,
-                    deviceId: true,
-                    name: true,
-                    createdAt: true,
-                    updatedAt: true,
-                },
-                orderBy: { createdAt: 'desc' },
-            }),
-            listConnections(),
-        ]);
+        const known = await prisma.display.findMany({
+            select: {
+                id: true,
+                deviceId: true,
+                name: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        // In-memory, no second query.
+        const live = listConnections();
 
         const serverRevision = getVisitsRevision();
         const now = Date.now();

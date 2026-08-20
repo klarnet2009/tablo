@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { markVisitsDirty } from '@/lib/display-registry';
 import { requireRole } from '@/lib/api-auth';
 import { createAuditLog, AuditActions } from '@/lib/audit';
 import { sortVisitsForQueue } from '@/lib/queue-order';
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
             afterState: visit,
         });
 
+        markVisitsDirty();
         return NextResponse.json(visit, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
