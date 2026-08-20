@@ -5,8 +5,9 @@ import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { SpinnerBlock } from '@/components/Spinner';
+import { Providers } from '@/components/Providers';
 
-export default function DashboardLayout({
+function DashboardShell({
     children,
 }: {
     children: React.ReactNode;
@@ -31,5 +32,18 @@ export default function DashboardLayout({
             </main>
             <MobileNav />
         </div>
+    );
+}
+
+/**
+ * The session and query providers live here rather than in the root layout: the
+ * public display board needs neither, and having them above it shipped next-auth
+ * and react-query to every kiosk and fired /api/auth/session on boot.
+ */
+export default function Layout({ children }: { children: React.ReactNode }) {
+    return (
+        <Providers>
+            <DashboardShell>{children}</DashboardShell>
+        </Providers>
     );
 }

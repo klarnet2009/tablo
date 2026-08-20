@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { SpinnerBlock } from '@/components/Spinner';
+import { Providers } from '@/components/Providers';
 
 /**
  * Shell and access check for /settings/*.
@@ -15,7 +16,7 @@ import { SpinnerBlock } from '@/components/Spinner';
  * This is a client-side gate: the API routes are the real boundary (see
  * lib/api-auth.ts), this only keeps the navigation honest.
  */
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+function SettingsShell({ children }: { children: React.ReactNode }) {
     const { data: session, status } = useSession();
 
     if (status === 'loading') {
@@ -38,5 +39,18 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">{children}</main>
             <MobileNav />
         </div>
+    );
+}
+
+/**
+ * The session and query providers live here rather than in the root layout: the
+ * public display board needs neither, and having them above it shipped next-auth
+ * and react-query to every kiosk and fired /api/auth/session on boot.
+ */
+export default function Layout({ children }: { children: React.ReactNode }) {
+    return (
+        <Providers>
+            <SettingsShell>{children}</SettingsShell>
+        </Providers>
     );
 }

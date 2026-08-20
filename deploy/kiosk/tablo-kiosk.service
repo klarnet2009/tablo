@@ -1,0 +1,36 @@
+[Unit]
+Description=Tablo display board (kiosk)
+Documentation=https://github.com/klarnet2009/tablo/blob/master/deploy/kiosk/README.md
+# The board is useless before the network is up, and it should come back by itself
+# after a router reboot or a power cut.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tablo
+EnvironmentFile=/etc/default/tablo-kiosk
+ExecStart=/usr/local/bin/tablo-kiosk.sh
+
+# A yard screen has nobody to click "reload". Restart forever, but back off so a
+# misconfiguration does not spin the CPU on a Pi.
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+
+# The renderer keeps its own state in the profile directory; nothing else needs
+# writing.
+StateDirectory=tablo-kiosk
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+# DRM/KMS access for cog, and input devices so a touch panel still works.
+SupplementaryGroups=video render input
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -82,6 +82,18 @@ done yet.
 `src/lib/docks.test.mts` builds its throwaway database from `schema.prisma` via
 `prisma migrate diff`, so at least the Prisma schema is exercised by the test suite.
 
+## Display board on a Raspberry Pi
+
+`/display` is meant to run full-screen on a small panel in the yard.
+`deploy/kiosk/` has a systemd unit and a launcher for that: WPE WebKit (`cog`)
+straight to DRM/KMS by default, Chromium `--kiosk` as a fallback, no desktop
+required either way. Set `DEVICE_ID` so the screen keeps one identity in
+*Settings → Displays* across reflashes. See
+[deploy/kiosk/README.md](deploy/kiosk/README.md).
+
+Pass `?deviceId=<name>` to pin the identity and `?lang=en|pl` to stop the language
+alternating.
+
 ## LDAP / Active Directory
 
 Configured at `/settings/authentication/ldap` (ADMIN only). Supports LDAP, LDAPS and

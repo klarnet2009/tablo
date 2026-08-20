@@ -174,6 +174,10 @@ function DisplayContent() {
     // stream is open but no longer delivering payloads: reconnect.
     const FRESHNESS_RECONNECT_AFTER_MS = 20000;
 
+    // Held in a ref so it stays out of the connection effect's dependencies: the
+    // pinned id cannot change without a full page load, and re-running that effect
+    // would tear down and rebuild the SSE stream.
+    const pinnedDeviceIdRef = useRef(searchParams.get('deviceId'));
     const deviceIdRef = useRef<string>('');
     const esRef = useRef<EventSource | null>(null);
     const connectRef = useRef<(() => void) | null>(null);
@@ -193,11 +197,13 @@ function DisplayContent() {
     };
 
     useEffect(() => {
-        // Obtain a stable deviceId per browser — used by back-office to
-        // identify which physical screen this is.
-        let deviceId: string | null = null;
+        // A kiosk started with ?deviceId=... pins its identity in the URL. Without
+        // that, the id lives in localStorage — which a kiosk profile wipe or an
+        // incognito launch resets, producing a fresh Display row on every boot and
+        // filling the back office with dead screens.
+        let deviceId: string | null = pinnedDeviceIdRef.current;
         try {
-            deviceId = localStorage.getItem('displayDeviceId');
+            deviceId = deviceId || localStorage.getItem('displayDeviceId');
             if (!deviceId) {
                 deviceId = typeof crypto !== 'undefined' && crypto.randomUUID
                     ? crypto.randomUUID()

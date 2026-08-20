@@ -1,0 +1,17 @@
+# Copy to /etc/default/tablo-kiosk and edit.
+
+# Where the board is served from. Use the LAN address of the Tablo host, not
+# localhost, unless the Pi is also the server.
+TABLO_URL=http://tablo.lan:3000/display
+
+# Identity of this physical screen, shown in Settings -> Displays. Any stable
+# string; the gate, the dock, whatever the yard calls it. Pinning it here means a
+# browser profile wipe does not create a duplicate entry.
+DEVICE_ID=yard-gate-1
+
+# cog      = WPE WebKit straight to DRM/KMS. Lightest; no desktop needed.
+# chromium = the browser from a Raspberry Pi OS desktop image.
+KIOSK_RUNTIME=cog
+
+# Lock the board to one language (en, pl). Leave empty to alternate every 7s.
+KIOSK_LANG=

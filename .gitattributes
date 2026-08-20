@@ -6,3 +6,8 @@
 Dockerfile text eol=lf
 docker-entrypoint.sh text eol=lf
 *.sql text eol=lf
+
+# container-executed and Pi kiosk scripts must keep LF
+deploy/kiosk/*.sh text eol=lf
+deploy/kiosk/*.service text eol=lf
+deploy/kiosk/*.default text eol=lf
