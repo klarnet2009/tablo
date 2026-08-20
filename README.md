@@ -101,6 +101,10 @@ It installs the runtime, enables the board at boot and schedules a weekly restar
 (Sunday 04:00 by default). Pass `?deviceId=<name>` / `?lang=en|pl` on the URL to pin
 the identity and stop the language alternating.
 
+The board picks up a new deployment on its own: the server's build id rides along on
+the 15 s liveness ping, and the page reloads when it changes. Nobody has to visit the
+yard after a release.
+
 ## LDAP / Active Directory
 
 Configured at `/settings/authentication/ldap` (ADMIN only). Supports LDAP, LDAPS and

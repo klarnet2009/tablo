@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Thermometer, Scale, TriangleAlert } from 'lucide-react';
 import Image from 'next/image';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
+import { shouldReloadForBuild } from '@/lib/build-id';
 
 interface TruckVisit {
     id: string;
@@ -183,6 +184,10 @@ function DisplayContent() {
     const connectRef = useRef<(() => void) | null>(null);
     const clientRevisionRef = useRef<number | null>(null);
     const staleSinceRef = useRef<number | null>(null);
+    // The build the page was served by. A ping reporting a different one means a
+    // deployment happened while this board sat here for weeks; the stream reconnects
+    // in seconds after a restart, so the silence watchdog never notices.
+    const buildRef = useRef<string | null>(null);
 
     // Fire-and-forget. keepalive lets it survive the page being closed.
     const sendAck = (revision: number) => {
@@ -257,7 +262,15 @@ function DisplayContent() {
             es.addEventListener('ping', (ev) => {
                 setLastSuccessTime(new Date());
                 try {
-                    const { revision } = JSON.parse((ev as MessageEvent).data);
+                    const { revision, build } = JSON.parse((ev as MessageEvent).data);
+
+                    if (shouldReloadForBuild(buildRef.current, build)) {
+                        console.log(`[display] new build ${build} deployed, reloading`);
+                        window.location.reload();
+                        return;
+                    }
+                    if (typeof build === 'string' && build !== '') buildRef.current = build;
+
                     if (typeof revision !== 'number') return;
 
                     const clientRev = clientRevisionRef.current;

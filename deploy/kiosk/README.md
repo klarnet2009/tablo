@@ -158,6 +158,13 @@ Independent of the kiosk setup, the page handles a lost server on its own:
 | 35 s without a ping or payload | red "connection lost" strip with a countdown |
 | 20 s of the server reporting newer data than the board has | soft reconnect of the SSE stream |
 | 90 s of silence | full page reload |
+| a ping reporting a different build id | full page reload, picking up the new deployment |
+
+That last row is why a deploy reaches the screens by itself. Without it the board
+keeps running the bundle it was served weeks ago: a restart drops the stream, but
+EventSource reconnects in seconds, far inside the 90 s watchdog, so nothing ever
+forced a reload. The board now compares the build id on every ping (every 15 s) and
+reloads within one ping cycle of a deploy.
 
 It also reconnects on `visibilitychange` and on the browser reporting the network
 back. See `src/app/display/page.tsx` and `src/lib/display-freshness.ts`.

@@ -10,6 +10,7 @@
 
 import prisma from './prisma';
 import { nextRevision, shouldRefresh } from './display-freshness.ts';
+import { readFileSync } from 'node:fs';
 
 export interface ConnectionInfo {
     deviceId: string;
@@ -74,6 +75,27 @@ function registry(): Map<string, ConnectionInfo> {
 }
 
 const encoder = new TextEncoder();
+
+let cachedBuildId: string | undefined;
+
+/**
+ * The running server's build id, read once from .next/BUILD_ID — a file Next writes
+ * per build and the Dockerfile copies into the image. Falls back to the process
+ * start time: a value that changes on restart is still better than none, at the
+ * cost of one extra board reload per restart that carried no new code.
+ *
+ * Lives here rather than in build-id.ts because that module is bundled into the
+ * client, which cannot import node:fs.
+ */
+function getBuildId(): string {
+    if (cachedBuildId !== undefined) return cachedBuildId;
+    try {
+        cachedBuildId = readFileSync('.next/BUILD_ID', 'utf8').trim();
+    } catch {
+        cachedBuildId = `t${Math.floor(Date.now() / 1000)}`;
+    }
+    return cachedBuildId;
+}
 
 export async function ensureDisplaySchema(): Promise<void> {
     if (globalState.displaySchemaReady) return;
@@ -186,8 +208,11 @@ function startBroadcastLoopIfNeeded() {
     if (!globalState.displayPingInterval) {
         // One shared timer instead of one per connection.
         globalState.displayPingInterval = setInterval(() => {
+            // The build id rides along so a board can notice it is running code
+            // from a previous deployment: after a restart the stream reconnects far
+            // too quickly for the 90s silence watchdog to ever fire.
             const revision = globalState.displayVisitsRevision ?? 0;
-            const payload = `event: ping\ndata: {"revision":${revision}}\n\n`;
+            const payload = `event: ping\ndata: {"revision":${revision},"build":"${getBuildId()}"}\n\n`;
             const bytes = encoder.encode(payload);
             for (const [deviceId, conn] of registry()) {
                 try {
