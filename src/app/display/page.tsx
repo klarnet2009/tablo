@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { getTranslations, isValidLocale, type Locale } from '@/lib/translations';
 import { shouldReloadForBuild } from '@/lib/build-id';
 import { boardPlateText } from '@/lib/board-plate';
+import { boardRowStatus, type BoardRowStatus } from '@/lib/board-status';
 
 interface TruckVisit {
     id: string;
@@ -21,6 +22,14 @@ interface TruckVisit {
 interface WeatherData {
     temp: number;
 }
+
+// Row colour per status: tint, leading stripe, label and badge share one hue.
+const ROW_TONE: Record<BoardRowStatus['tone'], { row: string; label: string; badge: string }> = {
+    called:  { row: 'bg-green-900/40 border-green-500 animate-pulse-slow', label: 'text-green-300', badge: 'bg-green-500' },
+    docked:  { row: 'bg-blue-900/40 border-blue-500', label: 'text-blue-300', badge: 'bg-blue-300' },
+    loading: { row: 'bg-indigo-900/40 border-indigo-500', label: 'text-indigo-300', badge: 'bg-indigo-300' },
+    waiting: { row: 'bg-slate-900 border-slate-700', label: 'text-slate-300', badge: 'bg-slate-300' },
+};
 
 // Main display content component
 function DisplayContent() {
@@ -367,6 +376,7 @@ function DisplayContent() {
     // Flash notification queue system
     const [flashQueue, setFlashQueue] = useState<TruckVisit[]>([]);
     const currentFlash = flashQueue[0] ?? null;
+    const flashRow = currentFlash ? boardRowStatus({ ...currentFlash, status: 'CALLED' }) : null;
     const previousVisitsRef = useRef<TruckVisit[]>([]);
     const shownFlashIdsRef = useRef<Set<string>>(new Set()); // Track already shown flashes
 
@@ -455,17 +465,15 @@ function DisplayContent() {
                 </div>
             )}
 
-            {/* Connection Lost Warning */}
+            {/* Connection Lost Warning. A still strip in the board's language: it
+                used to pulse and ping (competing with the call flash), use a glyph
+                for an icon, speak English only, and count down to a reload a driver
+                can do nothing about. */}
             {isConnectionLost && !currentFlash && (
-                <div className="absolute inset-x-0 bottom-0 z-40 bg-red-900/95 py-2 px-4 flex items-center justify-between animate-pulse">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-red-500 rounded-full animate-ping" />
-                        <span className="text-red-100 font-bold text-sm uppercase tracking-wider">
-                            ⚠ Connection Lost — Reconnecting...
-                        </span>
-                    </div>
-                    <span className="text-red-300 text-xs">
-                        Auto-reload in {Math.max(0, Math.ceil((HARD_RELOAD_AFTER_MS / 1000) - secondsSinceLastSuccess))}s
+                <div className="absolute inset-x-0 bottom-0 z-40 bg-red-900 py-2 px-4 flex items-center gap-2">
+                    <TriangleAlert className="w-5 h-5 shrink-0 text-red-100" aria-hidden="true" />
+                    <span className="text-red-100 font-bold text-sm uppercase tracking-wider">
+                        {t.connectionLost}
                     </span>
                 </div>
             )}
@@ -489,7 +497,7 @@ function DisplayContent() {
                             <div className="bg-black rounded-lg px-6 py-2 flex flex-col items-center">
                                 {/* Destination label */}
                                 <div className="text-lg text-white uppercase tracking-widest font-bold">
-                                    {currentFlash.assignedDock?.dockType === 'SCALES' ? flashT.goToScales : flashT.proceedTo}
+                                    {flashT[flashRow!.label]}
                                 </div>
 
                                 {/* MAIN: the plate. Largest thing in the product. */}
@@ -498,16 +506,16 @@ function DisplayContent() {
                                 </div>
                             </div>
 
-                            {/* Dock/Scales indicator - sharp blinking badge */}
-                            <div className={`font-black px-8 py-2 rounded-lg shadow-xl flex items-center justify-center animate-sharp-blink ${currentFlash.assignedDock?.dockType === 'SCALES'
-                                ? 'bg-yellow-300 text-black'
-                                : 'bg-white text-black'
-                                }`}>
-                                {currentFlash.assignedDock?.dockType === 'SCALES'
-                                    ? <Scale className="w-16 h-16" />
-                                    : <span className="text-5xl">{currentFlash.assignedDock?.dockNumber}</span>
-                                }
-                            </div>
+                            {/* Dock/Scales indicator - sharp blinking badge. Omitted when the
+                                dock is gone rather than drawn as an empty white box. */}
+                            {(flashRow!.scales || flashRow!.dockNumber !== null) && (
+                                <div className={`font-black px-8 py-2 rounded-lg shadow-xl flex items-center justify-center animate-sharp-blink text-black ${flashRow!.scales ? 'bg-yellow-300' : 'bg-white'}`}>
+                                    {flashRow!.scales
+                                        ? <Scale className="w-16 h-16" aria-hidden="true" />
+                                        : <span className="text-5xl">{flashRow!.dockNumber}</span>
+                                    }
+                                </div>
+                            )}
 
                             {/* Action text. Black on the green reads at 6.52:1 where white
                                 read at 2.22:1, and the pulse is gone: the blinking badge
@@ -528,7 +536,7 @@ function DisplayContent() {
                     <div className="px-2 py-1.5 rounded" style={{ backgroundColor: '#7CBD6E' }}>
                         <Image src="/logo.png" alt="Company Logo" width={100} height={40} className="h-6 w-auto" unoptimized />
                     </div>
-                    <div className="text-base md:text-lg text-slate-300 uppercase tracking-wider">{t.queueStatus}</div>
+                    <div className="text-lg text-slate-300 uppercase tracking-wider">{t.queueStatus}</div>
                 </div>
                 <div className="flex items-center gap-3">
                     {weather && (
@@ -551,23 +559,14 @@ function DisplayContent() {
 
                 {/* Rows */}
                 {displayList.map((visit) => {
-                    const isCalled = visit.status === 'CALLED';
-                    const isDocked = visit.status === 'DOCKED';
-                    const isLoading = visit.status === 'IN_SERVICE';
-                    const isActive = isCalled || isDocked || isLoading;
+                    const row = boardRowStatus(visit);
+                    const tone = ROW_TONE[row.tone];
                     const plate = boardPlateText(visit);
 
                     return (
                         <div
                             key={visit.id}
-                            className={`grid grid-cols-8 gap-2 items-center px-2 py-1 rounded ${isActive
-                                ? isLoading
-                                    ? 'bg-indigo-900/40 border-l-4 border-indigo-500'
-                                    : isDocked
-                                        ? 'bg-blue-900/40 border-l-4 border-blue-500'
-                                        : 'bg-green-900/40 border-l-4 border-green-500 animate-pulse-slow'
-                                : 'bg-slate-900 border-l-4 border-slate-700'
-                                }`}
+                            className={`grid grid-cols-8 gap-2 items-center px-2 py-1 rounded border-l-4 ${tone.row}`}
                         >
                             {/* Always white: 17-18:1 on every row tint. Status is the row's
                                 job (background, leading stripe, label on the right), not the
@@ -592,57 +591,21 @@ function DisplayContent() {
                                     </span>
                                 )}
                             </div>
+                            {/* One size for every status, no smaller than the column header:
+                                it used to be 12px for LOADING/AT DOCK and 20px for a call,
+                                chosen by status rather than by importance. A call already
+                                shouts through the blinking badge and the row's pulse. */}
                             <div className="col-span-2 text-right flex items-center justify-end gap-2 whitespace-nowrap">
-                                {isLoading && visit.assignedDock ? (
-                                    visit.assignedDock.dockType === 'SCALES' ? (
-                                        <>
-                                            <span className="text-xs text-yellow-300 uppercase font-bold">{t.weighing}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-1 rounded flex items-center justify-center">
-                                                <Scale className="w-6 h-6" />
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="text-xs text-indigo-300 uppercase">{t.loading}</span>
-                                            <div className="bg-indigo-600 text-white font-bold px-3 py-0 text-xl rounded">
-                                                {visit.assignedDock.dockNumber}
-                                            </div>
-                                        </>
-                                    )
-                                ) : isDocked && visit.assignedDock ? (
-                                    visit.assignedDock.dockType === 'SCALES' ? (
-                                        <>
-                                            <span className="text-xs text-yellow-300 uppercase font-bold">{t.atScales}</span>
-                                            <div className="bg-yellow-300 text-black font-black px-3 py-1 rounded flex items-center justify-center">
-                                                <Scale className="w-6 h-6" />
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="text-xs text-blue-300 uppercase">{t.atDock}</span>
-                                            <div className="bg-blue-600 text-white font-bold px-3 py-0 text-xl rounded">
-                                                {visit.assignedDock.dockNumber}
-                                            </div>
-                                        </>
-                                    )
-                                ) : isCalled && visit.assignedDock ? (
-                                    visit.assignedDock.dockType === 'SCALES' ? (
-                                        <>
-                                            <span className="text-xl text-yellow-300 uppercase">{t.goToScales}</span>
-                                            <div className="bg-yellow-300 text-black font-bold text-xl rounded animate-periodic-blink flex items-center justify-center w-[2.5rem] h-[1.75rem]">
-                                                <Scale className="w-5 h-5" />
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="text-xl text-green-300 uppercase">{t.proceedTo}</span>
-                                            <div className="bg-green-600 text-black font-bold px-3 py-0 text-xl rounded animate-periodic-blink min-w-[2.5rem] text-center">
-                                                {visit.assignedDock.dockNumber}
-                                            </div>
-                                        </>
-                                    )
-                                ) : (
-                                    <span className="text-slate-300 font-medium">{t.waiting}</span>
+                                <span className={`text-base font-bold uppercase ${row.scales ? 'text-yellow-300' : tone.label}`}>
+                                    {t[row.label]}
+                                </span>
+                                {(row.scales || row.dockNumber !== null) && (
+                                    // Black on the status hue: 9.5-15.8:1, where white on the
+                                    // 600 steps read at 5.3-6.5:1 — the lowest contrast on the
+                                    // board, on the one number that says where to drive.
+                                    <div className={`text-black font-black text-xl rounded min-w-[2.5rem] h-7 px-2 flex items-center justify-center ${row.scales ? 'bg-yellow-300' : tone.badge} ${row.tone === 'called' ? 'animate-periodic-blink' : ''}`}>
+                                        {row.scales ? <Scale className="w-5 h-5" aria-hidden="true" /> : row.dockNumber}
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -650,7 +613,7 @@ function DisplayContent() {
                 })}
 
                 {displayList.length === 0 && (
-                    <div className="flex-1 flex items-center justify-center text-white text-2xl md:text-4xl font-semibold">
+                    <div className="flex-1 flex items-center justify-center text-white text-4xl font-semibold">
                         {t.noTrucks}
                     </div>
                 )}
@@ -659,8 +622,10 @@ function DisplayContent() {
             {/* Footer / Paginator dots */}
             <div className="absolute bottom-1 right-2 flex items-center gap-2">
                 <div
-                    className={`w-1.5 h-1.5 rounded-full ${secondsSinceLastSuccess > 15 ? 'bg-red-500' : 'bg-green-500'}`}
-                    title="Connection status"
+                    // Same threshold as the strip: the dot used to turn red at 15s and the
+                    // strip to appear at 35s, so for twenty seconds the board said both.
+                    className={`w-1.5 h-1.5 rounded-full ${isConnectionLost ? 'bg-red-500' : 'bg-green-500'}`}
+                    aria-hidden="true"
                 />
                 <div className="flex gap-1">
                     {Array.from({ length: Math.ceil((activeVisits.length + waitingVisits.length) / itemsPerPage) }).map((_, i) => (

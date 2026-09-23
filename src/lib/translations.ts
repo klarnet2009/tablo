@@ -18,6 +18,9 @@ export interface DisplayTranslations {
     waiting: string;
     noTrucks: string;
     parkingWarning: string;
+    /** A called truck whose dock is no longer on record. */
+    called: string;
+    connectionLost: string;
 }
 
 const translations: Record<Locale, DisplayTranslations> = {
@@ -38,6 +41,8 @@ const translations: Record<Locale, DisplayTranslations> = {
         waiting: 'WAITING',
         noTrucks: 'NO TRUCKS IN QUEUE',
         parkingWarning: 'DO NOT PARK IN FRONT OF THE SCREEN',
+        called: 'CALLED',
+        connectionLost: 'Connection lost, reconnecting',
     },
     pl: {
         queueStatus: 'Status Kolejki',
@@ -56,6 +61,8 @@ const translations: Record<Locale, DisplayTranslations> = {
         waiting: 'OCZEKIWANIE',
         noTrucks: 'BRAK CIĘŻARÓWEK W KOLEJCE',
         parkingWarning: 'NIE PARKUJ PRZED EKRANEM',
+        called: 'WEZWANY',
+        connectionLost: 'Brak połączenia, łączenie',
     },
 };
 
