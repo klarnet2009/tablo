@@ -108,7 +108,8 @@ function DisplayContent() {
         return () => clearInterval(timer);
     }, []);
 
-    // Periodic parking warning: show for 20 seconds every 10 minutes, blink first 5 seconds
+    // Periodic parking warning: shown for 20 seconds every 30 minutes, blinking for the
+    // first 5. A dispatcher can still raise it at any time from queue management.
     const [warningBlinkPhase, setWarningBlinkPhase] = useState(true);
     const [warningLocaleIndex, setWarningLocaleIndex] = useState(0);
 
@@ -124,16 +125,11 @@ function DisplayContent() {
     };
 
     useEffect(() => {
-        const cycleTime = 600000; // 10 minutes cycle
-
-        // Shortly after load, then every 10 minutes. Deferred so the first paint is
-        // not a full-width red banner, and so the effect body does not setState.
-        const firstRun = setTimeout(triggerWarning, 2000);
-        const timer = setInterval(triggerWarning, cycleTime);
-        return () => {
-            clearTimeout(firstRun);
-            clearInterval(timer);
-        };
+        // Every 30 minutes, and not on load: the board reloads on every deploy and
+        // reboot, and a red banner each time is what made it feel constant. At 10
+        // minutes it covered the header a third of every hour a driver waited.
+        const timer = setInterval(triggerWarning, 30 * 60 * 1000);
+        return () => clearInterval(timer);
     }, []);
 
     // Poll for a manual trigger from queue management. The endpoint reports the
@@ -440,15 +436,20 @@ function DisplayContent() {
 
     return (
         <div className="w-[576px] h-[224px] bg-black text-white overflow-hidden p-2 flex flex-col relative">
-            {/* Parking Warning Overlay - Shows for 20 sec every 40 sec, blinks first 5 sec */}
+            {/* Parking Warning Overlay - 20 sec every 30 min, blinks first 5 sec */}
             {showParkingWarning && !currentFlash && (
                 <div className="absolute inset-x-0 top-0 z-30 bg-black h-12 flex items-center overflow-hidden">
                     <div className={`bg-red-600 w-full h-full flex items-center overflow-hidden ${warningBlinkPhase ? 'animate-blink-fast' : ''}`}>
-                        {/* Pinned while the message scrolls; an emoji inside the
-                            scrolling run rendered in the OS emoji font. */}
-                        <TriangleAlert className="w-7 h-7 shrink-0 mx-2 text-white" aria-hidden="true" />
-                        <div className="whitespace-nowrap animate-scroll-warning text-white font-black text-xl uppercase tracking-wider">
-                            {Array.from({ length: 6 }, () => warningT.parkingWarning).join('  \u2022  ')}
+                        {/* The sign travels with its message: pinned at the edge it read as
+                            a stuck icon while the text ran past it. Six copies, so the
+                            -50% scroll loops without a seam. */}
+                        <div className="flex items-center whitespace-nowrap animate-scroll-warning text-white font-black text-xl uppercase tracking-wider">
+                            {Array.from({ length: 6 }, (_, i) => (
+                                <span key={i} className="flex items-center shrink-0">
+                                    <TriangleAlert className="w-7 h-7 shrink-0 mx-3" aria-hidden="true" />
+                                    <span className="pr-8">{warningT.parkingWarning}</span>
+                                </span>
+                            ))}
                         </div>
                     </div>
                 </div>
