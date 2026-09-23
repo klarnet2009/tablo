@@ -11,16 +11,16 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
-    "@prisma/adapter-libsql": "^7.3.0",
-    "@prisma/client": "^7.3.0",
+    "@prisma/adapter-libsql": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@tanstack/react-query": "^5.90.19",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
     "ldapts": "^8.1.5",
     "lucide-react": "^0.563.0",
-    "next": "16.1.4",
+    "next": "16.3.6",
     "next-auth": "^4.24.15",
-    "prisma": "^7.3.0",
+    "prisma": "^7.10.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zod": "^4.3.6"
@@ -31,7 +31,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.4",
+    "eslint-config-next": "16.3.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
