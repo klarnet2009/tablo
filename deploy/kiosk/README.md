@@ -56,7 +56,7 @@ it.
 | `KIOSK_RUNTIME` | `cog` | `cog` or `chromium` |
 | `KIOSK_LANG` | empty | `en` / `pl` to stop the language alternating |
 | `RESTART_SCHEDULE` | `Sun 04:00` | systemd `OnCalendar` for the weekly restart |
-| `RESTART_MODE` | `service` | `service` restarts the board; `reboot` reboots the Pi |
+| `RESTART_MODE` | `service` | `service` restarts the board; `reboot` reboots the Pi (system scope only) |
 | `KIOSK_SCOPE` | `system` | `user` installs into the desktop user's systemd session |
 
 Watch it come up:
@@ -105,16 +105,40 @@ sudo RESTART_MODE=reboot TABLO_URL=... ./install.sh
 ```
 
 That flag only works for a system-scope install. A user-scope kiosk (the Raspberry
-Pi OS desktop setup) cannot reboot the machine from its own session, so the reboot
-has its own installer, which also disables the now-redundant browser restart:
+Pi OS desktop setup) cannot reboot the machine from its own session.
+
+## Weekly maintenance: updates, then reboot
+
+For a board nobody visits, use one night window instead of the restart above:
 
 ```bash
-sudo ./install-weekly-reboot.sh                          # Sunday 04:00
-sudo REBOOT_SCHEDULE='Sun 03:30' ./install-weekly-reboot.sh
+sudo ./install-weekly-maintenance.sh                              # Sunday 03:30
+sudo MAINTENANCE_SCHEDULE='Sat 02:00' ./install-weekly-maintenance.sh
 ```
 
-It deliberately has no `Persistent=`: a reboot missed because the Pi was off is
-not worth catching up on, and catching up would reboot the board mid-shift.
+One timer, `tablo-weekly-maintenance.timer`, does in order:
+
+1. `apt-get update`, then `unattended-upgrade`, limited to the release the Pi
+   already runs: Debian, its `-updates` and `-security` suites, and the Raspberry
+   Pi archive. It never moves the Pi to a new Debian release.
+2. `systemctl reboot`, which applies a kernel or Chromium update. lightdm autologs
+   in and the kiosk starts by itself.
+
+The daily apt timer still refreshes lists and pre-downloads packages, but is told
+not to install, so nothing is installed during a shift. A failed update does not
+cancel the reboot. Old kernels and orphaned packages are removed, because the SD
+card is small. The installer disables the weekly browser restart it replaces.
+
+There is no `Persistent=`: a window missed because the Pi was off is not worth
+catching up on, and catching up would update and reboot the board mid-shift.
+
+```bash
+sudo unattended-upgrade --dry-run -v          # what the next window would install
+journalctl -u tablo-weekly-maintenance -b -1  # what the last window did
+```
+
+The one risk automatic updates bring: an update that breaks the board. The window
+is at night on a weekend so that it shows up then, not at the start of a shift.
 
 ## Optional OS tweaks
 

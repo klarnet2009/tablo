@@ -52,6 +52,31 @@ function DisplayContent() {
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [showParkingWarning, setShowParkingWarning] = useState(false);
 
+    // The pointer is hidden until it moves, and again 3s after it stops. After a
+    // reboot the compositor parks it in the middle of the panel, over the rows. This
+    // is done by the page because the kiosk's Chromium is a Wayland client, which
+    // unclutter (an X tool) cannot reach.
+    const [pointerVisible, setPointerVisible] = useState(false);
+    useEffect(() => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const onMove = () => {
+            setPointerVisible(true);
+            clearTimeout(timer);
+            timer = setTimeout(() => setPointerVisible(false), 3000);
+        };
+        window.addEventListener('pointermove', onMove);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            clearTimeout(timer);
+        };
+    }, []);
+    // On the whole document, not the board: the pointer can rest outside the
+    // 576x224 surface too.
+    useEffect(() => {
+        document.documentElement.style.cursor = pointerVisible ? '' : 'none';
+        return () => { document.documentElement.style.cursor = ''; };
+    }, [pointerVisible]);
+
     useEffect(() => {
         const timer = setInterval(() => {
             const now = new Date();
@@ -653,7 +678,7 @@ function DisplayContent() {
 export default function DisplayPage() {
     return (
         <Suspense fallback={
-            <div className="w-[576px] h-[224px] bg-black text-white flex items-center justify-center">
+            <div className="w-[576px] h-[224px] bg-black text-white flex items-center justify-center cursor-none">
                 <div className="text-slate-300">Loading...</div>
             </div>
         }>

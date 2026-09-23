@@ -10,7 +10,7 @@
 #   KIOSK_LANG=en              lock the board to one language; empty = alternate
 #   RESTART_SCHEDULE='Sun 04:00'   systemd OnCalendar for the weekly restart
 #   RESTART_MODE=service       service (default) or reboot (system scope only;
-#                              user scope: sudo ./install-weekly-reboot.sh)
+#                              user scope: sudo ./install-weekly-maintenance.sh)
 #   KIOSK_SCOPE=system         system (default) or user
 #
 # KIOSK_SCOPE=user installs into the logged-in user's systemd session instead of
@@ -52,7 +52,7 @@ esac
 # A user session cannot reboot the machine, and this used to be silently ignored:
 # the user-scope timer restarted the browser whatever RESTART_MODE said.
 [ "$KIOSK_SCOPE" = user ] && [ "$RESTART_MODE" = reboot ] \
-    && die "RESTART_MODE=reboot needs root; for a user-scope kiosk run: sudo ./install-weekly-reboot.sh"
+    && die "RESTART_MODE=reboot needs root; for a user-scope kiosk run: sudo ./install-weekly-maintenance.sh"
 
 echo "==> Runtime: $KIOSK_RUNTIME"
 if [ "$KIOSK_SCOPE" = user ]; then
