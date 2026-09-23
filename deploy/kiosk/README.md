@@ -104,6 +104,18 @@ flaky USB or a clock that needs re-syncing:
 sudo RESTART_MODE=reboot TABLO_URL=... ./install.sh
 ```
 
+That flag only works for a system-scope install. A user-scope kiosk (the Raspberry
+Pi OS desktop setup) cannot reboot the machine from its own session, so the reboot
+has its own installer, which also disables the now-redundant browser restart:
+
+```bash
+sudo ./install-weekly-reboot.sh                          # Sunday 04:00
+sudo REBOOT_SCHEDULE='Sun 03:30' ./install-weekly-reboot.sh
+```
+
+It deliberately has no `Persistent=`: a reboot missed because the Pi was off is
+not worth catching up on, and catching up would reboot the board mid-shift.
+
 ## Optional OS tweaks
 
 Not done by the installer, because they change a machine beyond the board. Apply
